@@ -3,218 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luca와 대화하기</title>
+    <title>Luca - Talking Bot</title>
     <style>
         body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            font-family: 'Nanum Gothic', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            /* 이탈리아 베네치아 풍경 배경 */
-            background: url('https://images.unsplash.com/photo-1514890547357-a9ee2887ad8e?q=80&w=2070&auto=format&fit=crop') no-repeat center center fixed;
+            margin: 0; padding: 0; height: 100%; overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background: url('https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed;
             background-size: cover;
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
         }
 
-        #chat-container {
-            width: 90%;
-            max-width: 400px;
-            height: 600px;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        #chat-header {
-            background-color: #008C45; /* 이탈리아 국기 초록색 */
-            color: white;
-            padding: 15px;
-            text-align: center;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        #chat-window {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .message {
-            max-width: 80%;
-            padding: 10px 15px;
-            border-radius: 15px;
-            font-size: 16px;
-            line-height: 1.4;
+        /* 루카 캐릭터 스타일 */
+        #luca-container {
             position: relative;
+            width: 250px;
+            height: 350px;
+            margin-bottom: 20px;
+            transition: transform 0.3s;
         }
 
-        .luca-msg {
-            align-self: flex-start;
-            background-color: #f1f0f0;
-            color: #333;
-            border-bottom-left-radius: 2px;
+        #luca-character {
+            width: 100%;
+            filter: drop-shadow(5px 5px 15px rgba(0,0,0,0.5));
         }
 
-        .user-msg {
-            align-self: flex-end;
-            background-color: #CD212A; /* 이탈리아 국기 빨간색 */
-            color: white;
-            border-bottom-right-radius: 2px;
+        /* 루카 말할 때 애니메이션 */
+        .talking {
+            animation: bounce 0.5s infinite;
         }
-
-        .hint-box {
-            background-color: #fff3cd;
-            border: 1px dashed #ffeeba;
-            color: #856404;
-            padding: 8px;
-            border-radius: 10px;
-            font-size: 14px;
-            text-align: center;
-            margin-top: 5px;
-            animation: bounce 1s infinite;
-        }
-
         @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
 
-        #input-area {
-            padding: 15px;
+        /* 말풍선 */
+        #bubble {
+            position: absolute;
+            top: -80px; left: 50%;
+            transform: translateX(-50%);
             background: white;
-            display: flex;
-            gap: 5px;
+            padding: 15px 20px;
+            border-radius: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            width: 280px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            display: none;
+        }
+        #bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -10px; left: 50%;
+            border-width: 10px 10px 0;
+            border-style: solid;
+            border-color: white transparent;
+            transform: translateX(-50%);
         }
 
-        input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            outline: none;
-        }
-
-        button {
-            padding: 10px 15px;
-            background-color: #008C45;
+        /* 하단 컨트롤러 */
+        #control-panel {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 20px;
+            text-align: center;
             color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
         }
 
-        .avatar {
-            width: 40px;
-            height: 40px;
+        #hint {
+            color: #FFEB3B;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        #mic-btn {
+            width: 80px; height: 80px;
             border-radius: 50%;
-            background: #eee;
-            margin-bottom: 5px;
+            border: none;
+            background: #f44336;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(244, 67, 54, 0.5);
+        }
+        #mic-btn.recording {
+            background: #4CAF50;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
     </style>
 </head>
 <body>
 
-<div id="chat-container">
-    <div id="chat-header">
-        <span>🇮🇹 Talk with Luca</span>
+    <div id="luca-container">
+        <div id="bubble"></div>
+        <!-- 귀여운 소년 일러스트 (더미 이미지로 대체, 나중에 실제 이미지 링크로 교체 가능) -->
+        <img id="luca-character" src="https://cdn-icons-png.flaticon.com/512/4140/4140037.png" alt="Luca">
     </div>
-    <div id="chat-window">
-        <!-- 메시지가 여기에 표시됩니다 -->
+
+    <div id="control-panel">
+        <div id="hint">화면의 마이크 버튼을 눌러보세요!</div>
+        <button id="mic-btn">🎙️</button>
+        <p id="recognized-text" style="font-size: 14px; opacity: 0.8;"></p>
     </div>
-    <div id="input-area">
-        <input type="text" id="user-input" placeholder="Type here..." onkeypress="if(event.keyCode==13) sendMessage()">
-        <button onclick="sendMessage()">Send</button>
-    </div>
-</div>
 
 <script>
-    const chatWindow = document.getElementById('chat-window');
-    const userInput = document.getElementById('user-input');
+    const bubble = document.getElementById('bubble');
+    const luca = document.getElementById('luca-container');
+    const hint = document.getElementById('hint');
+    const micBtn = document.getElementById('mic-btn');
+    const recognizedText = document.getElementById('recognized-text');
+
     let step = 0;
-
-    // 루카의 메시지 출력 함수
-    function addLucaMessage(text, hint = "") {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = 'message luca-msg';
-        msgDiv.innerHTML = `<strong>Luca</strong><br>${text}`;
-        chatWindow.appendChild(msgDiv);
-
-        if (hint) {
-            const hintDiv = document.createElement('div');
-            hintDiv.className = 'hint-box';
-            hintDiv.innerText = `💡 ${hint}`;
-            chatWindow.appendChild(hintDiv);
-        }
+    
+    // 음성 합성 (말하기)
+    function speak(text, callback) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
         
-        chatWindow.scrollTop = chatWindow.scrollHeight;
+        bubble.style.display = 'block';
+        bubble.innerHTML = text;
+        luca.classList.add('talking');
+        
+        utterance.onend = () => {
+            luca.classList.remove('talking');
+            if (callback) callback();
+        };
+        window.speechSynthesis.speak(utterance);
     }
 
-    // 학생의 메시지 출력 함수
-    function addUserMessage(text) {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = 'message user-msg';
-        msgDiv.innerText = text;
-        chatWindow.appendChild(msgDiv);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
-    }
+    // 음성 인식 (듣기)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
 
-    // 첫 인사 시작
-    setTimeout(() => {
-        addLucaMessage("Ciao! My name is Luca! Nice to meet you. <br>Do you like Pizza?", "Yes나 No로 대답해보세요. (예: Yes, I do.)");
-        step = 1;
-    }, 500);
+    micBtn.onclick = () => {
+        recognition.start();
+        micBtn.classList.add('recording');
+        recognizedText.innerText = "Listening...";
+    };
 
-    function sendMessage() {
-        const text = userInput.value.trim();
-        if (text === "") return;
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.toLowerCase();
+        recognizedText.innerText = `You said: "${transcript}"`;
+        handleConversation(transcript);
+    };
 
-        addUserMessage(text);
-        userInput.value = "";
+    recognition.onend = () => {
+        micBtn.classList.remove('recording');
+    };
 
-        // 대화 로직
-        setTimeout(() => {
-            if (step === 1) {
-                if (text.toLowerCase().includes("yes")) {
-                    addLucaMessage("Oh! I like Pizza too! It's good!");
-                } else {
-                    addLucaMessage("Oh, Okay!");
-                }
-                
-                setTimeout(() => {
-                    addLucaMessage("Now, it's your turn!", "루카에게 김밥을 좋아하는지 영어로 물어보세요. (Do you like Kimbap?)");
-                    step = 2;
-                }, 1000);
-
-            } else if (step === 2) {
-                if (text.toLowerCase().includes("do you like kimbap")) {
-                    addLucaMessage("Yes, I do. I like Kimbap.");
-                    setTimeout(() => {
-                        addLucaMessage("Do you like Kimbap?", "여러분의 대답을 입력해보세요! (Yes, I do. 또는 No, I don't.)");
-                        step = 3;
-                    }, 1000);
-                } else {
-                    addLucaMessage("Sorry? Can you ask 'Do you like Kimbap?'", "영어로 물어봐주세요: Do you like Kimbap?");
-                }
-
-            } else if (step === 3) {
-                addLucaMessage("Oh, great! Come to Italy! Bye Bye! 👋");
-                step = 4;
+    // 대화 로직
+    function handleConversation(input) {
+        if (step === 1) {
+            if (input.includes("yes")) {
+                speak("Oh! I like Pizza too! It's good!", () => {
+                    nextStep("Now, ask me: Do you like Kimbap?", "루카에게 김밥을 좋아하는지 물어보세요!");
+                });
+            } else {
+                speak("Oh, Okay!", () => {
+                    nextStep("Now, ask me: Do you like Kimbap?", "루카에게 김밥을 좋아하는지 물어보세요!");
+                });
             }
+            step = 2;
+        } else if (step === 2 && input.includes("kimbap")) {
+            speak("Yes, I do. I like Kimbap. Do you like Kimbap?", () => {
+                hint.innerText = "Yes나 No로 대답해보세요!";
+            });
+            step = 3;
+        } else if (step === 3) {
+            speak("Oh, great! Come to Italy! Bye Bye!", () => {
+                hint.innerText = "대화가 끝났습니다. 다시 하려면 새로고침 하세요.";
+            });
+        }
+    }
+
+    function nextStep(text, hintText) {
+        setTimeout(() => {
+            speak(text);
+            hint.innerText = hintText;
         }, 1000);
     }
-</script>
 
+    // 시작
+    window.onload = () => {
+        setTimeout(() => {
+            speak("Ciao! My name is Luca! Nice to meet you. Do you like Pizza?", () => {
+                hint.innerText = "Yes, I do 또는 No, I don't라고 말해보세요.";
+            });
+            step = 1;
+        }, 1000);
+    };
+</script>
 </body>
 </html>
