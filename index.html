@@ -13,7 +13,6 @@
             display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
         }
 
-        /* 메인 컨테이너: 3D 효과를 위해 원근감 설정 */
         #main-stage {
             position: relative;
             width: 100%;
@@ -25,12 +24,12 @@
             perspective: 1000px;
         }
 
-        /* 3D 루카 캐릭터 영역 */
+        /* 3D 루카 배치 공간 */
         #luca-container {
             position: relative;
             width: 280px;
             height: 380px;
-            margin-bottom: 120px; /* 말풍선이 들어갈 넉넉한 하단 공간 */
+            margin-bottom: 120px;
             transform-style: preserve-3d;
             animation: idle3D 3.5s ease-in-out infinite alternate;
             z-index: 2;
@@ -46,7 +45,6 @@
             filter: drop-shadow(10px 15px 20px rgba(0,0,0,0.5));
         }
 
-        /* 말할 때 캐릭터만 움직이게 설정 (말풍선은 영향 안 받음) */
         .talking #luca-character {
             animation: bodyTalk 0.4s infinite alternate;
         }
@@ -55,17 +53,17 @@
             100% { transform: scale(1.05); }
         }
 
-        /* 💬 말풍선: 루카 몸 밖으로 완전히 분리하여 고정 */
+        /* 💬 완벽하게 고정된 말풍선 */
         #bubble {
             position: absolute; 
-            bottom: 150px; /* 컨트롤러 위, 루카 다리 위치에 고정 */
+            bottom: 150px; 
             left: 50%;
             transform: translateX(-50%);
             background: white; 
             padding: 15px 20px; 
             border-radius: 25px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.3); 
-            width: 85%; /* 화면 너비에 맞춰 유연하게 조절 */
+            width: 85%; 
             max-width: 340px;
             text-align: center; 
             font-size: 24px; 
@@ -74,7 +72,7 @@
             border: 4px solid #008C45; 
             word-break: keep-all; 
             z-index: 5;
-            pointer-events: none; /* 클릭 방해 금지 */
+            pointer-events: none; 
         }
         #bubble::after {
             content: ''; 
@@ -126,7 +124,6 @@
 <body>
 
     <div id="main-stage">
-        <!-- 말풍선이 루카 밖으로 나와서 이제 안 잘립니다! -->
         <div id="bubble">Click START! 👇</div>
 
         <div id="luca-container">
@@ -181,15 +178,23 @@
         
         const utterance = new SpeechSynthesisUtterance(text.replace(/<br>/g, " "));
         utterance.lang = 'en-US';
-        utterance.rate = 0.75; 
+        utterance.rate = 0.8; // 아이들이 듣기 편한 최적의 속도
+        
+        // ⭐ [핵심 변경] 음정을 높여 소년 목소리로 만드는 마법의 트릭
+        utterance.pitch = 1.45; 
         
         if (voices.length > 0) {
-            // 최대한 자연스러운 소년/남성 목소리 찾기
             const preferredVoice = voices.find(v => 
                 v.lang.startsWith('en') && 
                 (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('google'))
             ) || voices.find(v => v.lang.startsWith('en'));
-            if (preferredVoice) utterance.voice = preferredVoice;
+            if (preferredVoice) {
+                utterance.voice = preferredVoice;
+                // 만약 기기 기본 엔진이 여성 음성이면 pitch를 조금만 낮춤 (기기별 최적화)
+                if (preferredVoice.name.toLowerCase().includes('female') || preferredVoice.name.toLowerCase().includes('zira')) {
+                    utterance.pitch = 1.15; 
+                }
+            }
         }
         
         lucaContainer.classList.add('talking');
@@ -246,6 +251,7 @@
                 hint.innerText = "다시 마이크를 누르고 'Do you like ice cream?'이라고 말해보세요!";
             });
         } else if (step === 3) {
+            // 🚫 [수정] 대사 끝의 손흔들기 이모티콘 제거하여 "Hand waving" 오독 현상 완벽 차단!
             speak("Oh, great! Come to Italy! Bye Bye!", () => {
                 hint.innerText = "🎉 참 잘했어요! 대화가 끝났습니다.";
             });
