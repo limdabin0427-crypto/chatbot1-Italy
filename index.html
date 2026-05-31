@@ -11,70 +11,75 @@
             background: url('https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed;
             background-size: cover;
             display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-            perspective: 1200px;
         }
 
-        /* 3D 루카 배치 공간 */
+        /* 메인 컨테이너: 3D 효과를 위해 원근감 설정 */
+        #main-stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            perspective: 1000px;
+        }
+
+        /* 3D 루카 캐릭터 영역 */
         #luca-container {
             position: relative;
             width: 280px;
-            height: 400px;
-            margin-bottom: 90px; /* 말풍선이 다리 쪽에 들어갈 공간 확보 */
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
+            height: 380px;
+            margin-bottom: 120px; /* 말풍선이 들어갈 넉넉한 하단 공간 */
             transform-style: preserve-3d;
             animation: idle3D 3.5s ease-in-out infinite alternate;
             z-index: 2;
         }
         @keyframes idle3D {
-            0% { transform: translateZ(20px) rotateY(-3deg) translateY(0px); }
-            100% { transform: translateZ(40px) rotateY(3deg) translateY(-8px); }
+            0% { transform: rotateY(-3deg) translateY(0px); }
+            100% { transform: rotateY(3deg) translateY(-8px); }
         }
 
-        /* 루카 본체 이미지 */
         #luca-character {
             width: 100%; max-height: 100%;
             object-fit: contain;
             filter: drop-shadow(10px 15px 20px rgba(0,0,0,0.5));
-            z-index: 3;
-            transition: transform 0.2s;
         }
 
-        /* 🗣️ 말할 때 전체 몸 돌출 애니메이션 */
+        /* 말할 때 캐릭터만 움직이게 설정 (말풍선은 영향 안 받음) */
         .talking #luca-character {
             animation: bodyTalk 0.4s infinite alternate;
         }
         @keyframes bodyTalk {
-            0% { transform: translateZ(30px) scale(1) rotateX(0deg); }
-            100% { transform: translateZ(70px) scale(1.05) rotateX(-3deg); }
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
         }
 
-        /* 💬 층 위치 변경: 루카 다리 쪽(아래쪽)으로 이동한 큰 말풍선 */
+        /* 💬 말풍선: 루카 몸 밖으로 완전히 분리하여 고정 */
         #bubble {
             position: absolute; 
-            bottom: -80px; /* 캐릭터 다리 아래쪽 배치 */
+            bottom: 150px; /* 컨트롤러 위, 루카 다리 위치에 고정 */
             left: 50%;
-            transform: translateX(-50%) translateZ(100px);
+            transform: translateX(-50%);
             background: white; 
             padding: 15px 20px; 
             border-radius: 25px;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.35); 
-            width: 320px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); 
+            width: 85%; /* 화면 너비에 맞춰 유연하게 조절 */
+            max-width: 340px;
             text-align: center; 
             font-size: 24px; 
             font-weight: bold; 
             color: #222;
-            border: 4px solid #008C45; /* 이탈리아 초록 테두리 */
-            display: block; 
+            border: 4px solid #008C45; 
             word-break: keep-all; 
             z-index: 5;
+            pointer-events: none; /* 클릭 방해 금지 */
         }
-        /* 말풍선 꼬리표가 위를 향하도록 수정 */
         #bubble::after {
             content: ''; 
             position: absolute; 
-            top: -15px; /* 위쪽으로 꼬리표 노출 */
+            top: -15px; 
             left: 50%;
             border-width: 0 15px 15px;
             border-style: solid; 
@@ -90,66 +95,51 @@
             box-sizing: border-box; z-index: 10;
         }
 
-        /* 🇮🇹 이탈리아 국기 */
         #flag-container {
             position: absolute; top: 15px; right: 20px; width: 60px; height: 40px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            animation: wave 2s ease-in-out infinite alternate;
-            transform-origin: left center;
             background: linear-gradient(to right, #008C45 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #CD212A 66.6%);
             border-radius: 2px;
+            animation: wave 2s ease-in-out infinite alternate;
         }
         @keyframes wave {
             0% { transform: skewY(-4deg); }
             100% { transform: skewY(4deg); }
         }
 
-        #hint {
-            color: #FFEB3B; margin-bottom: 15px; font-size: 18px; font-weight: bold;
-            padding-right: 70px; text-align: center;
-        }
+        #hint { color: #FFEB3B; margin-bottom: 15px; font-size: 18px; font-weight: bold; padding-right: 70px; }
         
         #mic-btn {
             width: 85px; height: 85px; border-radius: 50%; border: none;
             background: #CD212A; color: white; font-size: 35px; cursor: pointer;
-            box-shadow: 0 0 25px rgba(205, 33, 42, 0.7); transition: 0.2s;
-            display: none;
-            margin: 0 auto;
+            box-shadow: 0 0 25px rgba(205, 33, 42, 0.7); display: none; margin: 0 auto;
         }
         #mic-btn.recording { background: #4CAF50; animation: pulse 1.2s infinite; }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
 
-        /* 시작 버튼 */
         #start-btn {
             padding: 15px 40px; font-size: 22px; font-weight: bold;
             background-color: #008C45; color: white; border: none;
             border-radius: 50px; cursor: pointer; box-shadow: 0 5px 15px rgba(0,140,69,0.5);
-            animation: bounce 1s infinite alternate;
-        }
-        @keyframes bounce {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(-5px); }
         }
     </style>
 </head>
 <body>
 
-    <div id="luca-container">
+    <div id="main-stage">
+        <!-- 말풍선이 루카 밖으로 나와서 이제 안 잘립니다! -->
         <div id="bubble">Click START! 👇</div>
-        <img id="luca-character" src="OIP_Luca_paguro_png.PNG" alt="Luca">
-    </div>
 
-    <div id="control-panel">
-        <div id="flag-container"></div>
-        <div id="hint">Let's talk with Luca!</div>
-        
-        <button id="start-btn" onclick="startApp()">START 🇮🇹</button>
-        <button id="mic-btn">🎙️</button>
-        <p id="recognized-text" style="font-size: 16px; color: #66BB6A; margin-top: 10px; font-weight: bold; min-height: 20px;"></p>
+        <div id="luca-container">
+            <img id="luca-character" src="OIP_Luca_paguro_png.PNG" alt="Luca">
+        </div>
+
+        <div id="control-panel">
+            <div id="flag-container"></div>
+            <div id="hint">Let's talk with Luca!</div>
+            <button id="start-btn" onclick="startApp()">START 🇮🇹</button>
+            <button id="mic-btn">🎙️</button>
+            <p id="recognized-text" style="font-size: 16px; color: #66BB6A; margin-top: 10px; font-weight: bold; min-height: 20px;"></p>
+        </div>
     </div>
 
 <script>
@@ -161,14 +151,21 @@
     const recognizedText = document.getElementById('recognized-text');
 
     let step = 0;
+    let voices = [];
+
+    function loadVoices() {
+        voices = window.speechSynthesis.getVoices();
+    }
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
     
     function startApp() {
         startBtn.style.display = 'none';
         micBtn.style.display = 'block';
-        
         window.speechSynthesis.cancel();
-        const initialUtterance = new SpeechSynthesisUtterance("");
-        window.speechSynthesis.speak(initialUtterance);
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 
         setTimeout(() => {
             speak("Ciao! My name is Luca! Nice to meet you. Do you like Pizza?", () => {
@@ -186,8 +183,16 @@
         utterance.lang = 'en-US';
         utterance.rate = 0.75; 
         
-        lucaContainer.classList.add('talking');
+        if (voices.length > 0) {
+            // 최대한 자연스러운 소년/남성 목소리 찾기
+            const preferredVoice = voices.find(v => 
+                v.lang.startsWith('en') && 
+                (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('google'))
+            ) || voices.find(v => v.lang.startsWith('en'));
+            if (preferredVoice) utterance.voice = preferredVoice;
+        }
         
+        lucaContainer.classList.add('talking');
         utterance.onend = () => {
             lucaContainer.classList.remove('talking');
             if (callback) callback();
@@ -202,16 +207,13 @@
         recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
         recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
 
         micBtn.onclick = () => {
             try {
                 recognition.start();
                 micBtn.classList.add('recording');
-                recognizedText.innerText = "Listening...👂 (말해보세요!)";
-            } catch (e) {
-                console.log("이미 인식중입니다.");
-            }
+                recognizedText.innerText = "Listening...👂";
+            } catch (e) {}
         };
 
         recognition.onresult = (event) => {
@@ -219,35 +221,32 @@
             recognizedText.innerText = `내가 한 말: "${transcript}"`;
             handleConversation(transcript);
         };
-
         recognition.onend = () => { micBtn.classList.remove('recording'); };
-    } else {
-        alert("이 브라우저는 음성 인식을 지원하지 않습니다. 구글 크롬(Chrome) 앱으로 접속해주세요!");
     }
 
     function handleConversation(input) {
         if (step === 1) {
             if (input.includes("yes")) {
                 speak("Oh! I like Pizza too! It's good!", () => {
-                    nextStep("Now, ask me: Do you like Kimbap?", "루카에게 'Do you like Kimbap?'이라고 물어보세요!");
+                    nextStep("Now, ask me: Do you like ice cream?", "루카에게 'Do you like ice cream?'이라고 물어보세요!");
                 });
             } else {
                 speak("Oh, Okay!", () => {
-                    nextStep("Now, ask me: Do you like Kimbap?", "루카에게 'Do you like Kimbap?'이라고 물어보세요!");
+                    nextStep("Now, ask me: Do you like ice cream?", "루카에게 'Do you like ice cream?'이라고 물어보세요!");
                 });
             }
             step = 2;
-        } else if (step === 2 && (input.includes("kimbap") || input.includes("kimbab"))) {
-            speak("Yes, I do. I like Kimbap. Do you like Kimbap?", () => {
+        } else if (step === 2 && (input.includes("ice") || input.includes("cream"))) {
+            speak("Yes, I do. I like ice cream. Do you like ice cream?", () => {
                 hint.innerText = "마이크를 누르고 'Yes, I do.' 또는 'No, I don't.'라고 답해보세요!";
             });
             step = 3;
         } else if (step === 2) {
-            speak("Can you ask me 'Do you like Kimbap?'", () => {
-                hint.innerText = "다시 마이크를 누르고 'Do you like Kimbap?'이라고 말해보세요!";
+            speak("Can you ask me 'Do you like ice cream?'", () => {
+                hint.innerText = "다시 마이크를 누르고 'Do you like ice cream?'이라고 말해보세요!";
             });
         } else if (step === 3) {
-            speak("Oh, great! Come to Italy! Bye Bye!", () => {
+            speak("Oh, great! Come to Italy! Bye Bye! 👋", () => {
                 hint.innerText = "🎉 참 잘했어요! 대화가 끝났습니다.";
             });
             step = 4;
