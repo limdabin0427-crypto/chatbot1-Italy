@@ -8,11 +8,10 @@
         body, html {
             margin: 0; padding: 0; height: 100%; overflow: hidden;
             font-family: 'Arial', sans-serif;
-            /* 베네치아 배경 */
             background: url('https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed;
             background-size: cover;
             display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-            perspective: 1200px; /* 3D 깊이감 */
+            perspective: 1200px;
         }
 
         /* 3D 루카 배치 공간 */
@@ -33,47 +32,26 @@
             100% { transform: translateZ(40px) rotateY(3deg) translateY(-8px); }
         }
 
-        /* 루카 본체 이미지 (새로 올려주신 파일명으로 변경) */
+        /* 루카 본체 이미지 */
         #luca-character {
             width: 100%; max-height: 100%;
             object-fit: contain;
             filter: drop-shadow(10px 15px 20px rgba(0,0,0,0.5));
             z-index: 3;
+            transition: transform 0.2s;
         }
 
-        /* 👄 말할 때 뻐끔거리는 입술 레이어 */
-        #luca-mouth-cover {
-            position: absolute;
-            top: 21%; /* 루카 입 위치 */
-            width: 32px;
-            height: 18px;
-            background: #e28d75;
-            border-radius: 50%;
-            border-bottom: 3px solid #772b1d;
-            opacity: 0;
-            z-index: 4;
-            transform-origin: center top;
-        }
-
-        /* 🗣️ 대화 애니메이션 */
+        /* 🗣️ 말할 때 입술 대신 캐릭터가 생동감 있게 들썩이는 효과 */
         .talking #luca-character {
             animation: bodyTalk 0.4s infinite alternate;
         }
-        .talking #luca-mouth-cover {
-            opacity: 0.9;
-            animation: mouthTalk 0.15s infinite alternate;
-        }
 
         @keyframes bodyTalk {
-            0% { transform: translateZ(30px) scale(1); }
-            100% { transform: translateZ(60px) scale(1.03); }
-        }
-        @keyframes mouthTalk {
-            0% { transform: scaleY(0.3) scaleX(0.8); }
-            100% { transform: scaleY(1.4) scaleX(1.1); }
+            0% { transform: translateZ(30px) scale(1) rotateX(0deg); }
+            100% { transform: translateZ(70px) scale(1.05) rotateX(-3deg); }
         }
 
-        /* 💬 시원하게 잘 보이는 큰 말풍선 (상단 방해 요소 없음) */
+        /* 💬 시원하게 잘 보이는 큰 말풍선 */
         #bubble {
             position: absolute; top: -110px; left: 50%;
             transform: translateX(-50%) translateZ(100px);
@@ -96,13 +74,9 @@
             box-sizing: border-box; z-index: 10;
         }
 
-        /* 🇮🇹 이탈리아 국기 (하단 대화창 영역 내부 우측 상단으로 이동) */
+        /* 🇮🇹 이탈리아 국기 (하단 우측 위치) */
         #flag-container {
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            width: 60px;
-            height: 40px;
+            position: absolute; top: 15px; right: 20px; width: 60px; height: 40px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             animation: wave 2s ease-in-out infinite alternate;
             transform-origin: left center;
@@ -115,12 +89,8 @@
         }
 
         #hint {
-            color: #FFEB3B;
-            margin-bottom: 15px;
-            font-size: 19px;
-            font-weight: bold;
-            padding-right: 70px; /* 국기랑 겹치지 않게 여백 추가 */
-            text-align: center;
+            color: #FFEB3B; margin-bottom: 15px; font-size: 19px; font-weight: bold;
+            padding-right: 70px; text-align: center;
         }
         
         #mic-btn {
@@ -140,14 +110,11 @@
 
     <div id="luca-container">
         <div id="bubble">Loading...</div>
-        
         <img id="luca-character" src="OIP_Luca_paguro_png.PNG" alt="Luca">
-        <div id="luca-mouth-cover"></div>
     </div>
 
     <div id="control-panel">
         <div id="flag-container"></div>
-        
         <div id="hint">잠시만 기다려주세요...</div>
         <button id="mic-btn">🎙️</button>
         <p id="recognized-text" style="font-size: 16px; color: #66BB6A; margin-top: 10px; font-weight: bold; min-height: 20px;"></p>
@@ -168,7 +135,7 @@
         
         const utterance = new SpeechSynthesisUtterance(text.replace(/<br>/g, " "));
         utterance.lang = 'en-US';
-        utterance.rate = 0.75; // 느린 속도 유지
+        utterance.rate = 0.75; 
         
         lucaContainer.classList.add('talking');
         
@@ -179,7 +146,6 @@
         window.speechSynthesis.speak(utterance);
     }
 
-    // 음성 인식 (STT)
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
@@ -198,7 +164,6 @@
 
     recognition.onend = () => { micBtn.classList.remove('recording'); };
 
-    // 시나리오 로직
     function handleConversation(input) {
         if (step === 1) {
             if (input.includes("yes")) {
