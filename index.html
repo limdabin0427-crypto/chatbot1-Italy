@@ -3,59 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luca - Talking Bot</title>
+    <title>Luca - Talking 3D Bot</title>
     <style>
         body, html {
             margin: 0; padding: 0; height: 100%; overflow: hidden;
             font-family: 'Arial', sans-serif;
+            /* 베네치아 배경 */
             background: url('https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed;
             background-size: cover;
             display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+            perspective: 1000px; /* 3D 입체 깊이감 추가 */
         }
 
-        /* 루카 캐릭터 스타일 */
+        /* 🇮🇹 이탈리아 국기 애니메이션 (상단 전체에 펄럭이는 효과) */
+        #flag-container {
+            position: absolute;
+            top: 20px;
+            width: 120px;
+            height: 80px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+            animation: wave 2s ease-in-out infinite alternate;
+            transform-origin: left center;
+            background: linear-gradient(to right, #008C45 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #CD212A 66.6%);
+            border-radius: 4px;
+            z-index: 10;
+        }
+
+        @keyframes wave {
+            0% { transform: skewY(-5deg) rotateX(10deg); }
+            100% { transform: skewY(5deg) rotateX(-10deg); }
+        }
+
+        /* 3D 루카 캐릭터 배치공간 */
         #luca-container {
             position: relative;
-            width: 250px;
-            height: 350px;
+            width: 320px;
+            height: 450px;
             margin-bottom: 20px;
-            transition: transform 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            transform-style: preserve-3d;
+            /* 기본 숨쉬기 같은 3D 애니메이션 */
+            animation: idle3D 3s ease-in-out infinite alternate;
+        }
+
+        /* 3D 부유감 및 그림자 왜곡 애니메이션 */
+        @keyframes idle3D {
+            0% { transform: translateZ(20px) rotateY(-5deg) translateY(0px); }
+            100% { transform: translateZ(50px) rotateY(5deg) translateY(-10px); }
         }
 
         #luca-character {
             width: 100%;
-            filter: drop-shadow(5px 5px 15px rgba(0,0,0,0.5));
+            max-height: 100%;
+            object-fit: contain;
+            /* 입체감을 주기 위한 부드러운 다중 그림자 효과 */
+            filter: drop-shadow(10px 15px 20px rgba(0,0,0,0.6));
+            transition: transform 0.3s;
         }
 
-        /* 루카 말할 때 애니메이션 */
+        /* 🗣️ 말할 때 살아 움직이는 3D 팝업 애니메이션 */
         .talking {
-            animation: bounce 0.5s infinite;
+            animation: talk3D 0.4s infinite alternate !important;
         }
-        @keyframes bounce {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+        @keyframes talk3D {
+            0% { transform: translateZ(40px) scale(1) rotateX(0deg); }
+            100% { transform: translateZ(80px) scale(1.05) rotateX(-5deg); }
         }
 
-        /* 말풍선 */
+        /* 💬 항상 고정되어 보일 큰 말풍선 */
         #bubble {
             position: absolute;
-            top: -80px; left: 50%;
-            transform: translateX(-50%);
+            top: -120px; left: 50%;
+            transform: translateX(-50%) translateZ(100px); /* 말풍선이 캐릭터보다 앞으로 튀어나오게 설정 */
             background: white;
-            padding: 15px 20px;
-            border-radius: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            width: 280px;
+            padding: 20px;
+            border-radius: 25px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+            width: 320px;
             text-align: center;
-            font-size: 18px;
+            font-size: 24px; /* 글자 크기 더 확대 */
             font-weight: bold;
-            display: none;
+            color: #222;
+            border: 4px solid #008C45; /* 이탈리아 초록 테두리 */
+            display: block;
+            word-break: keep-all;
+            z-index: 5;
         }
         #bubble::after {
             content: '';
             position: absolute;
-            bottom: -10px; left: 50%;
-            border-width: 10px 10px 0;
+            bottom: -15px; left: 50%;
+            border-width: 15px 15px 0;
             border-style: solid;
             border-color: white transparent;
             transform: translateX(-50%);
@@ -64,31 +104,36 @@
         /* 하단 컨트롤러 */
         #control-panel {
             width: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 25px 20px;
             text-align: center;
             color: white;
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.4);
+            box-sizing: border-box;
+            z-index: 10;
         }
 
         #hint {
             color: #FFEB3B;
             margin-bottom: 15px;
-            font-size: 16px;
+            font-size: 19px;
+            font-weight: bold;
         }
 
         #mic-btn {
-            width: 80px; height: 80px;
+            width: 90px; height: 90px;
             border-radius: 50%;
             border: none;
-            background: #f44336;
+            background: #CD212A; /* 이탈리아 빨간색 */
             color: white;
-            font-size: 30px;
+            font-size: 40px;
             cursor: pointer;
-            box-shadow: 0 0 15px rgba(244, 67, 54, 0.5);
+            box-shadow: 0 0 25px rgba(205, 33, 42, 0.7);
+            transition: 0.2s;
         }
         #mic-btn.recording {
             background: #4CAF50;
-            animation: pulse 1.5s infinite;
+            animation: pulse 1.2s infinite;
         }
         @keyframes pulse {
             0% { transform: scale(1); }
@@ -99,16 +144,18 @@
 </head>
 <body>
 
+    <div id="flag-container"></div>
+
     <div id="luca-container">
-        <div id="bubble"></div>
-        <!-- 귀여운 소년 일러스트 (더미 이미지로 대체, 나중에 실제 이미지 링크로 교체 가능) -->
-        <img id="luca-character" src="https://cdn-icons-png.flaticon.com/512/4140/4140037.png" alt="Luca">
+        <div id="bubble">Loading...</div>
+        
+        <img id="luca-character" src="OIP_Luca_paguro_png.webp" alt="Luca">
     </div>
 
     <div id="control-panel">
-        <div id="hint">화면의 마이크 버튼을 눌러보세요!</div>
+        <div id="hint">잠시만 기다려주세요...</div>
         <button id="mic-btn">🎙️</button>
-        <p id="recognized-text" style="font-size: 14px; opacity: 0.8;"></p>
+        <p id="recognized-text" style="font-size: 16px; color: #66BB6A; margin-top: 10px; font-weight: bold; min-height: 20px;"></p>
     </div>
 
 <script>
@@ -120,25 +167,30 @@
 
     let step = 0;
     
-    // 음성 합성 (말하기)
+    // 🗣️ 오디오 출력 설정 (천천히 말하기 기능)
     function speak(text, callback) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-US';
-        utterance.rate = 0.9;
+        window.speechSynthesis.cancel(); 
         
-        bubble.style.display = 'block';
+        // 말풍선 텍스트 즉시 고정 노출
         bubble.innerHTML = text;
+        
+        const utterance = new SpeechSynthesisUtterance(text.replace(/<br>/g, " "));
+        utterance.lang = 'en-US';
+        
+        // 🐢 초등학교 3학년 맞춤 느린 속도 (0.75)
+        utterance.rate = 0.75; 
+        
+        // 루카가 대화할 때 3D 앞으로 튀어나오는 애니메이션 켜기
         luca.classList.add('talking');
         
         utterance.onend = () => {
-            luca.classList.remove('talking');
+            luca.classList.remove('talking'); // 말 끝나면 기본 3D 모드로 복귀
             if (callback) callback();
         };
         window.speechSynthesis.speak(utterance);
     }
 
-    // 음성 인식 (듣기)
+    // 🎙️ 음성 인식 설정 (STT)
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
@@ -146,12 +198,12 @@
     micBtn.onclick = () => {
         recognition.start();
         micBtn.classList.add('recording');
-        recognizedText.innerText = "Listening...";
+        recognizedText.innerText = "Listening...👂 (말해보세요!)";
     };
 
     recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript.toLowerCase();
-        recognizedText.innerText = `You said: "${transcript}"`;
+        recognizedText.innerText = `내가 한 말: "${transcript}"`;
         handleConversation(transcript);
     };
 
@@ -159,28 +211,33 @@
         micBtn.classList.remove('recording');
     };
 
-    // 대화 로직
+    // 💬 시나리오 대화 로직
     function handleConversation(input) {
         if (step === 1) {
             if (input.includes("yes")) {
                 speak("Oh! I like Pizza too! It's good!", () => {
-                    nextStep("Now, ask me: Do you like Kimbap?", "루카에게 김밥을 좋아하는지 물어보세요!");
+                    nextStep("Now, ask me: Do you like Kimbap?", "루카에게 'Do you like Kimbap?'이라고 물어보세요!");
                 });
             } else {
                 speak("Oh, Okay!", () => {
-                    nextStep("Now, ask me: Do you like Kimbap?", "루카에게 김밥을 좋아하는지 물어보세요!");
+                    nextStep("Now, ask me: Do you like Kimbap?", "루카에게 'Do you like Kimbap?'이라고 물어보세요!");
                 });
             }
             step = 2;
-        } else if (step === 2 && input.includes("kimbap")) {
+        } else if (step === 2 && (input.includes("kimbap") || input.includes("kimbab"))) {
             speak("Yes, I do. I like Kimbap. Do you like Kimbap?", () => {
-                hint.innerText = "Yes나 No로 대답해보세요!";
+                hint.innerText = "마이크를 누르고 'Yes, I do.' 또는 'No, I don't.'라고 답해보세요!";
             });
             step = 3;
-        } else if (step === 3) {
-            speak("Oh, great! Come to Italy! Bye Bye!", () => {
-                hint.innerText = "대화가 끝났습니다. 다시 하려면 새로고침 하세요.";
+        } else if (step === 2) {
+            speak("Can you ask me 'Do you like Kimbap?'", () => {
+                hint.innerText = "다시 마이크를 누르고 'Do you like Kimbap?'이라고 말해보세요!";
             });
+        } else if (step === 3) {
+            speak("Oh, great! Come to Italy! Bye Bye! 👋", () => {
+                hint.innerText = "🎉 참 잘했어요! 대화가 끝났습니다.";
+            });
+            step = 4;
         }
     }
 
@@ -188,17 +245,17 @@
         setTimeout(() => {
             speak(text);
             hint.innerText = hintText;
-        }, 1000);
+        }, 1200);
     }
 
-    // 시작
+    // 🏁 앱 시작점
     window.onload = () => {
         setTimeout(() => {
             speak("Ciao! My name is Luca! Nice to meet you. Do you like Pizza?", () => {
-                hint.innerText = "Yes, I do 또는 No, I don't라고 말해보세요.";
+                hint.innerText = "마이크를 누르고 'Yes, I do.' 또는 'No, I don't.'라고 말해보세요.";
             });
             step = 1;
-        }, 1000);
+        }, 1200);
     };
 </script>
 </body>
