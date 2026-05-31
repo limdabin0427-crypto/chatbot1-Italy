@@ -29,7 +29,7 @@
             position: relative;
             width: 280px;
             height: 380px;
-            margin-bottom: 120px;
+            margin-bottom: 140px; /* 말풍선 위치 확보를 위해 여백 소폭 증가 */
             transform-style: preserve-3d;
             animation: idle3D 3.5s ease-in-out infinite alternate;
             z-index: 2;
@@ -53,10 +53,10 @@
             100% { transform: scale(1.05); }
         }
 
-        /* 💬 완벽하게 고정된 말풍선 */
+        /* 💬 위치 수정: 검정 칸과 겹치지 않도록 위로 올린 말풍선 */
         #bubble {
             position: absolute; 
-            bottom: 150px; 
+            bottom: 210px; /* 기존 150px에서 210px로 올려서 검정 칸과 분리 */
             left: 50%;
             transform: translateX(-50%);
             background: white; 
@@ -74,23 +74,29 @@
             z-index: 5;
             pointer-events: none; 
         }
+        /* 말풍선 꼬리표 (루카를 향하게) */
         #bubble::after {
             content: ''; 
             position: absolute; 
-            top: -15px; 
+            bottom: -15px; /* 꼬리표가 아래를 향하도록 수정 */
             left: 50%;
-            border-width: 0 15px 15px;
+            border-width: 15px 15px 0;
             border-style: solid; 
             border-color: white transparent;
             transform: translateX(-50%);
         }
 
-        /* 🎛️ 하단 컨트롤러 영역 */
+        /* 🎛️ 하단 컨트롤러 영역 (검정 칸) */
         #control-panel {
             position: relative;
-            width: 100%; background: rgba(0, 0, 0, 0.85); padding: 25px 20px;
-            text-align: center; color: white; box-shadow: 0 -10px 25px rgba(0,0,0,0.5);
-            box-sizing: border-box; z-index: 10;
+            width: 100%; 
+            background: rgba(0, 0, 0, 0.85); 
+            padding: 25px 20px;
+            text-align: center; 
+            color: white; 
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.5);
+            box-sizing: border-box; 
+            z-index: 10;
         }
 
         #flag-container {
@@ -178,10 +184,8 @@
         
         const utterance = new SpeechSynthesisUtterance(text.replace(/<br>/g, " "));
         utterance.lang = 'en-US';
-        utterance.rate = 0.8; // 아이들이 듣기 편한 최적의 속도
-        
-        // ⭐ [핵심 변경] 음정을 높여 소년 목소리로 만드는 마법의 트릭
-        utterance.pitch = 1.45; 
+        utterance.rate = 0.8; 
+        utterance.pitch = 1.45; // 소년 목소리 톤 유지
         
         if (voices.length > 0) {
             const preferredVoice = voices.find(v => 
@@ -190,8 +194,7 @@
             ) || voices.find(v => v.lang.startsWith('en'));
             if (preferredVoice) {
                 utterance.voice = preferredVoice;
-                // 만약 기기 기본 엔진이 여성 음성이면 pitch를 조금만 낮춤 (기기별 최적화)
-                if (preferredVoice.name.toLowerCase().includes('female') || preferredVoice.name.toLowerCase().includes('zira')) {
+                if (preferredVoice.name.toLowerCase().includes('female')) {
                     utterance.pitch = 1.15; 
                 }
             }
@@ -251,7 +254,6 @@
                 hint.innerText = "다시 마이크를 누르고 'Do you like ice cream?'이라고 말해보세요!";
             });
         } else if (step === 3) {
-            // 🚫 [수정] 대사 끝의 손흔들기 이모티콘 제거하여 "Hand waving" 오독 현상 완벽 차단!
             speak("Oh, great! Come to Italy! Bye Bye!", () => {
                 hint.innerText = "🎉 참 잘했어요! 대화가 끝났습니다.";
             });
