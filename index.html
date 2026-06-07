@@ -18,7 +18,7 @@
             box-shadow: 0 0 30px rgba(0,0,0,0.5);
         }
 
-        /* 🎬 4개의 GIF 크로스페이드 배경 슬라이드쇼 */
+        /* 🎬 생동감 넘치는 4개의 GIF 크로스페이드 배경 슬라이드쇼 (블러 제거) */
         .bg-slideshow {
             position: absolute; top: 0; left: 0;
             width: 100%; height: 100%;
@@ -26,7 +26,7 @@
         }
         .bg-slideshow::after {
             content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 15, 20, 0.35); 
+            background: rgba(15, 15, 20, 0.35); /* 가독성을 확보하면서도 쨍함을 유지하는 투명도 조절 */
             z-index: 2;
         }
         .bg-slide {
@@ -57,6 +57,7 @@
             perspective: 1000px; padding-top: 20px;
         }
 
+        /* 깨지는 국기 이모지 대신 들어갈 GIF 국기 스타일 */
         #italy-flag-img {
             position: absolute; top: 15px; left: 15px;
             width: 50px; height: auto;
@@ -73,25 +74,9 @@
             0% { transform: rotateY(-5deg) translateY(0px); }
             100% { transform: rotateY(5deg) translateY(-6px); }
         }
-
-        /* 🗣️ 루카 말하기 애니메이션 핵심 CSS */
-        #luca-character { 
-            width: 100%; height: 100%; 
-            object-fit: contain; 
-            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.4)); 
-        }
-
-        /* 대화 중일 때(.talking) 3장의 이미지를 빠르게 번갈아 보여주는 애니메이션 */
-        .talking #luca-character { 
-            content: url('luca talking 1.png');
-            animation: lucaMouthTalk 1.5s steps(1) infinite;
-        }
-
-        @keyframes lucaMouthTalk {
-            0% { content: url('luca talking 1.png'); }
-            33.33% { content: url('luca talking 2.png'); }
-            66.66% { content: url('luca talking 3.png'); }
-        }
+        #luca-character { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.4)); }
+        .talking #luca-character { animation: bodyTalk 0.4s infinite alternate; }
+        @keyframes bodyTalk { 0% { transform: scale(1); } 100% { transform: scale(1.05); } }
 
         #live-bubble {
             position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
@@ -203,6 +188,7 @@
     function addChatMessage(sender, text) {
         let formattedText = text.trim();
         
+        // 사용자가 발화한 문장의 첫 글자 대문자 자동 포맷팅 적용
         if (sender === 'user' && formattedText.length > 0) {
             formattedText = formattedText.charAt(0).toUpperCase() + formattedText.slice(1);
         }
@@ -228,11 +214,8 @@
             if (preferredVoice) utterance.voice = preferredVoice;
         }
         
-        // 말하기 시작 -> CSS 애니메이션 트리거 활성화
         lucaWrapper.classList.add('talking');
-        
         utterance.onend = () => {
-            // 말하기 종료 -> 유저 대기 기본 이미지(OIP_Luca_paguro_png.PNG)로 자동 복귀
             lucaWrapper.classList.remove('talking');
             if (callback) callback();
         };
