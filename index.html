@@ -29,9 +29,32 @@
             display: flex; justify-content: center; align-items: flex-end; z-index: 2;
             perspective: 1000px; padding-top: 20px;
         }
+
+        /* 🇮🇹 이탈리아 감성 일러스트 데코레이션 요소 정의 */
+        .italy-deco {
+            position: absolute;
+            font-size: 32px;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+            user-select: none;
+            z-index: 2;
+            bottom: 25px;
+            animation: decoFloat 3s ease-in-out infinite alternate;
+        }
+        @keyframes decoFloat {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-5px); }
+        }
+        /* 왼쪽 장식 (국기, 젤라또) */
+        .deco-flag { left: 15px; bottom: 85px; font-size: 36px; animation-delay: 0s; }
+        .deco-gelato { left: 25px; bottom: 25px; font-size: 34px; animation-delay: 0.5s; }
+        /* 오른쪽 장식 (오토바이, 피사의 사탑) */
+        .deco-scooter { right: 25px; bottom: 25px; font-size: 34px; animation-delay: 1s; }
+        .deco-tower { right: 15px; bottom: 85px; font-size: 38px; animation-delay: 1.5s; }
+
         #luca-wrapper {
-            position: relative; width: 150px; height: 200px;
+            position: relative; width: 140px; height: 180px;
             transform-style: preserve-3d; animation: idle3D 4s ease-in-out infinite alternate;
+            z-index: 3;
         }
         @keyframes idle3D {
             0% { transform: rotateY(-5deg) translateY(0px); }
@@ -90,10 +113,17 @@
 
     <div id="app-container">
         <div id="character-area">
+            <!-- 이탈리아 감성 일러스트 요소 배치 -->
+            <div class="italy-deco deco-flag">🇮🇹</div>
+            <div class="italy-deco deco-gelato">🍦</div>
+            
             <div id="live-bubble">Click START! 👇</div>
             <div id="luca-wrapper">
                 <img id="luca-character" src="OIP_Luca_paguro_png.PNG" alt="Luca">
             </div>
+
+            <div class="italy-deco deco-scooter">🛵</div>
+            <div class="italy-deco deco-tower">🗼</div>
         </div>
 
         <div id="chat-history"></div>
@@ -139,10 +169,18 @@
         }, 300);
     }
 
+    // 말풍선 추가 및 첫 글자 대문자 변환 로직 반영
     function addChatMessage(sender, text) {
+        let formattedText = text.trim();
+        
+        // 사용자가 말한 경우 문장의 첫 글자를 대문자로 변환
+        if (sender === 'user' && formattedText.length > 0) {
+            formattedText = formattedText.charAt(0).toUpperCase() + formattedText.slice(1);
+        }
+
         const msgBubble = document.createElement('div');
         msgBubble.classList.add('msg', sender);
-        msgBubble.innerText = text;
+        msgBubble.innerText = formattedText;
         chatHistory.appendChild(msgBubble);
         chatHistory.scrollTop = chatHistory.scrollHeight;
     }
@@ -169,7 +207,7 @@
         window.speechSynthesis.speak(utterance);
     }
 
-    // 💬 [핵심 대화 전면 수정] 정해진 시나리오대로 오작동 없이 흐르는 로직
+    // 💬 [핵심 대화 로직] 정해진 시나리오대로 오작동 없이 흐르는 로직
     function handleConversation(input) {
         // 아이들의 다양한 영어 발음을 캐치하기 위해 소문자 공백 제거 처리
         const cleanInput = input.toLowerCase().trim();
@@ -284,7 +322,7 @@
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
             
-            // 학생 말 화면에 즉시 버블로 표시
+            // 학생 말을 화면에 버블로 표시 (addChatMessage 내부에서 첫글자 대문자화 자동 처리)
             addChatMessage('user', transcript);
             
             // 시나리오 판단 함수로 전송
