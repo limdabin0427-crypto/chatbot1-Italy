@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luca - Gemini AI Messenger</title>
+    <title>Luca - Elementary Small Talk Bot</title>
     <style>
         body, html {
             margin: 0; padding: 0; height: 100%; overflow: hidden;
@@ -106,9 +106,6 @@
     </div>
 
 <script>
-    // ⚠️ [선생님 설정용] 여기에 구글 Gemini API Key를 입력하세요!
-    const GEMINI_API_KEY = ""; 
-
     const liveBubble = document.getElementById('live-bubble');
     const lucaWrapper = document.getElementById('luca-wrapper');
     const chatHistory = document.getElementById('chat-history');
@@ -117,17 +114,14 @@
     const micBtn = document.getElementById('mic-btn');
 
     let voices = [];
-    
-    // ⭐ Gemini API의 대화 구조에 맞춘 기록 저장소
-    let chatContents = [];
-    
-    // 루카의 성격 정의 프롬프트 (Gemini System Instruction용)
-    const systemInstruction = "You are Luca, a friendly 10-year-old Italian boy. Speak in very simple English for a 3rd-grade elementary student (CEFR A1 level). Keep answers very short (1 or 2 sentences max). Ask simple questions about food, hobbies, or sports like 'Do you like pizza?' or 'Do you like ice cream?'. Do not use emojis in your response.";
+    let step = 0; // 대화 단계를 추적하는 변수
+    let studentName = ""; // 학생 이름을 기억할 변수
 
     function loadVoices() { voices = window.speechSynthesis.getVoices(); }
     loadVoices();
     if (window.speechSynthesis.onvoiceschanged !== undefined) window.speechSynthesis.onvoiceschanged = loadVoices;
 
+    // 대화 시작 버튼 클릭 시 (Step 0)
     function startApp() {
         startBtn.style.display = 'none';
         micBtn.style.display = 'block';
@@ -136,13 +130,12 @@
         window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 
         setTimeout(() => {
-            const greeting = "Ciao! My name is Luca! Nice to meet you. Do you like Pizza?";
+            step = 0;
+            const greeting = "Ciao! Hello!";
             addChatMessage('luca', greeting);
-            
-            // 첫 인사 기록 누적
-            chatContents.push({ role: "model", parts: [{ text: greeting }] });
-            
-            speak(greeting, () => { hint.innerText = "🎙️ 버튼을 누르고 대답해보세요!"; });
+            speak(greeting, () => { 
+                hint.innerText = "🎙️ 루카에게 'Hi' 또는 'Hello'라고 인사해보세요!"; 
+            });
         }, 300);
     }
 
@@ -160,8 +153,8 @@
         
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
-        utterance.rate = 0.8;
-        utterance.pitch = 1.45; // 소년 음색
+        utterance.rate = 0.8; // 느리고 친절한 속도
+        utterance.pitch = 1.45; // 소년 변신 헬륨 트릭
         
         if (voices.length > 0) {
             const preferredVoice = voices.find(v => v.lang.startsWith('en') && (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('google'))) || voices.find(v => v.lang.startsWith('en'));
@@ -176,52 +169,109 @@
         window.speechSynthesis.speak(utterance);
     }
 
-    // 🌐 [핵심 업데이트] Google Gemini API 호출 함수
-    async function fetchAIResponse(userMessage) {
-        if (!GEMINI_API_KEY) {
-            // 로컬 테스트용 임시 로직
-            if (userMessage.includes("yes")) return "Oh, I like Pizza too! It's good! Do you like ice cream?";
-            if (userMessage.includes("ice") || userMessage.includes("cream")) return "Yes, I do! I love ice cream! Do you like snacks?";
-            return "Wow, that's cool! Tell me more!";
-        }
+    // 💬 [핵심 대화 전면 수정] 정해진 시나리오대로 오작동 없이 흐르는 로직
+    function handleConversation(input) {
+        // 아이들의 다양한 영어 발음을 캐치하기 위해 소문자 공백 제거 처리
+        const cleanInput = input.toLowerCase().trim();
 
-        // 유저 입력 추가
-        chatContents.push({ role: "user", parts: [{ text: userMessage }] });
-
-        // 가장 빠르고 교육용 가성비가 최고인 gemini-2.5-flash 모델 적용
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-        try {
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: chatContents,
-                    systemInstruction: { parts: [{ text: systemInstruction }] }, // 페르소나 주입
-                    generationConfig: {
-                        maxOutputTokens: 60,
-                        temperature: 0.7
-                    }
-                })
-            });
+        // 0단계: 인사를 받았을 때 -> 이름 묻기
+        if (step === 0) {
+            if (cleanInput.includes("hi") || cleanInput.includes("hello")) {
+                step = 1;
+                setTimeout(() => {
+                    const nextText = "I'm Luca. What's your name?";
+                    addChatMessage('luca', nextText);
+                    speak(nextText, () => {
+                        hint.innerText = "🎙️ 'My name is oo' 또는 'I'm oo'라고 이름을 말해보세요.";
+                    });
+                }, 1000);
+            } else {
+                speak("Say Hi or Hello!", () => {
+                    hint.innerText = "🎙️ 다시 한 번 'Hi' 또는 'Hello'라고 해보세요!";
+                });
+            }
+        } 
+        
+        // 1단계: 이름을 말했을 때 -> 이탈리아 소개 및 피자 질문
+        else if (step === 1) {
+            // "my name is", "i am", "i'm" 패턴 분석 후 순수한 이름만 추출 시도
+            let detectedName = "my friend";
+            if (cleanInput.includes("my name is")) {
+                detectedName = input.substring(input.toLowerCase().indexOf("is") + 2).trim();
+            } else if (cleanInput.includes("i am")) {
+                detectedName = input.substring(input.toLowerCase().indexOf("am") + 2).trim();
+            } else if (cleanInput.includes("i'm") || cleanInput.includes("im")) {
+                const index = input.toLowerCase().includes("i'm") ? input.toLowerCase().indexOf("i'm") + 3 : input.toLowerCase().indexOf("im") + 2;
+                detectedName = input.substring(index).trim();
+            } else {
+                // 패턴 없이 그냥 이름 단어만 말한 경우
+                detectedName = input.trim();
+            }
             
-            const data = await response.json();
-            const aiText = data.candidates[0].content.parts[0].text.trim();
+            // 첫 글자 대문자화
+            studentName = detectedName.charAt(0).toUpperCase() + detectedName.slice(1);
             
-            // 모델 답변 저장
-            chatContents.push({ role: "model", parts: [{ text: aiText }] });
-            return aiText;
-        } catch (error) {
-            console.error("Gemini API 호출 오류:", error);
-            return "Sorry, I am a bit confused. Can you say that again?";
+            step = 2;
+            setTimeout(() => {
+                const nextText = `Nice to meet you, ${studentName}! I'm from Italy. Do you like pizza?`;
+                addChatMessage('luca', nextText);
+                speak(nextText, () => {
+                    hint.innerText = "🎙️ 'Yes, I do.' 또는 'No, I don't.'라고 답해보세요.";
+                });
+            }, 1000);
+        } 
+        
+        // 2단계: 피자 답변을 했을 때 -> 아이스크림 역질문 유도
+        else if (step === 2) {
+            let replyText = "";
+            if (cleanInput.includes("yes")) {
+                replyText = "Oh, I like pizza too! It's so good!";
+            } else {
+                replyText = "Oh, okay! Pizza is not your favorite.";
+            }
+
+            step = 3;
+            setTimeout(() => {
+                addChatMessage('luca', replyText);
+                speak(replyText, () => {
+                    // 바로 이어서 아이스크림 질문하도록 유도
+                    setTimeout(() => {
+                        const askMe = "Now, ask me: Do you like ice cream?";
+                        addChatMessage('luca', askMe);
+                        speak(askMe, () => {
+                            hint.innerText = "🎙️ 루카에게 'Do you like ice cream?'이라고 질문해 보세요!";
+                        });
+                    }, 1000);
+                });
+            }, 500);
+        } 
+        
+        // 3단계: 아이스크림 질문을 받았을 때 -> 최종 마무리 답변
+        else if (step === 3) {
+            if (cleanInput.includes("ice") || cleanInput.includes("cream") || cleanInput.includes("like")) {
+                step = 4;
+                setTimeout(() => {
+                    const finalReply = "Yes, I do! I love ice cream! Come to Italy! Bye Bye!";
+                    addChatMessage('luca', finalReply);
+                    speak(finalReply, () => {
+                        hint.innerText = "🎉 대화 성공! 참 잘했어요!";
+                        micBtn.style.display = 'none'; // 대화 끝났으므로 마이크 숨김
+                    });
+                }, 1000);
+            } else {
+                speak("Can you ask me: Do you like ice cream?", () => {
+                    hint.innerText = "🎙️ 'Do you like ice cream?'이라고 소리 내어 물어봐 주세요.";
+                });
+            }
         }
     }
 
-    // STT 음성 인식 설정
+    // STT 음성 인식 엔진 세팅
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
+        recognition.interimResults = false;
 
         micBtn.onclick = () => {
             try {
@@ -231,24 +281,19 @@
             } catch (e) {}
         };
 
-        recognition.onresult = async (event) => {
+        recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
             
+            // 학생 말 화면에 즉시 버블로 표시
             addChatMessage('user', transcript);
-            hint.innerText = "Luca가 생각하고 있어요...";
-
-            // Gemini API 호출
-            const lucaResponse = await fetchAIResponse(transcript);
             
-            addChatMessage('luca', lucaResponse);
-            speak(lucaResponse, () => {
-                hint.innerText = "🎙️ 버튼을 누르고 대답해보세요!";
-            });
+            // 시나리오 판단 함수로 전송
+            handleConversation(transcript);
         };
 
         recognition.onend = () => { micBtn.classList.remove('recording'); };
     } else {
-        alert("크롬 앱을 사용해주세요!");
+        alert("크롬 브라우저를 사용해주세요!");
     }
 </script>
 </body>
