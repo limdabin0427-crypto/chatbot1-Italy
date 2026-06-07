@@ -107,7 +107,20 @@
 
 <script>
     // ⚠️ [선생님 설정용] 여기에 구글 Gemini API Key를 입력하세요!
-    const GEMINI_API_KEY = ""; 
+    const GEMINI_API_KEY = "{
+  "type": "service_account",
+  "project_id": "able-pottery-488710-p1",
+  "private_key_id": "1d2ed7ec46b3647b707a883815b54cdd9d530298",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDxcKiYIibAt/5G\ndO+fABkZ/OzgmoVvJPprXHI2/LPv5exKKnNkxm/BVy1S2RisohgeCkJ4LYDjcZzs\nbLtIVejUy2lZ4EDbhwdE5H1McRcY/j6LeWHVTeZMYUEbEzbuRdxB3NVPDXIOmhyG\nvIWzsMj/aeAUjzpFq04OTC51De7uQSw8ALLy2xHq1RtKWap4dTCKz7H//JgTvmWJ\nHrLEu7na4DjKyJGuYk8QH08ju+RuzQevPdiAoGgnv8VjGpffYWXxYr3kYeNT8/Q2\n10U430CEaFFxWtQz3uolN27gtoUDRPXb1uPqaZZfdJ5ae1snuVPFVy9R5Xd4xj2h\nT0YYmtWdAgMBAAECggEAB2FdkKOf8k2C36h8wqwqwu6brGn3djmie1xXaXLkFTXp\nY9hUWq+Y2ZzOl9+8WgVCc3ig0Nz4jvtOxAi22N6MwCR6U0hVneBMypWpdt1mIATK\n6Kc3ObaojuEnhP+wstaT2wzjFbLgL64U/Sa6IjoJ4DTeUq07fMcLGx4dCsWi7h7P\nWwgcJMCE1wHVYw5LnxB1Etgmlgyfe6GI1WnJTOhGO67yh0uArj8SazH+r98lIUjr\nmG7hubom7OTVAKIVajc+OAXtI6jO+72IFA3F2XIW0YOJ2UlcItYSELp5IwQZGJP5\nKDQa6GjZNICb8LEgbCzEViYlD3XBtHqZ4LoenJ28SQKBgQD8+hagfA93nG9XaziL\nkHE0KNb5Fnfy8nwOFEpSqnQlJYtgoclaHlvnGjMweFjIYg3WZ2gnu+MWRAwXQf5d\nwe37Fkw2VcP03Gy9QJDmIG/IPBQm7koMi64YxSv7lijiUclPcQayRHwqMy1JFa3s\nWjQgg+Qqq6yHRrPDl/TW7327GwKBgQD0U0bHz7xSChK9Bx/tPIPs95TdmqWWszt3\niZ9LkW5z6kE5KYENQSthHHYPRFO7eRqTVVG1dh+h672pK+A/BJN6n/JYVC6stthB\nPOrjaYuiavS/fcyzWzyLVLsMBPbq7zH+T+biGU7Co9NqkhrmVJEll9tkteDfNmC4\n0r71lW7FpwKBgEq/Chh5D4jj6/IEeDykfQ5QUtReUyqxgv4V+K/cNV0Ubs4qf3fl\nKHpsP1u+81yhvDzxaND0rvBRQtFMaoABYPOjbvlO9gtPZcG1ZhrY0q5zMfEezzpN\nuy8OcyRvBb15NOYIG1Zo7db6MBM8GJuRO32v+qaw+tUtisfsCifHs3qpAoGAU6/y\nnp5ZMwCgSn8WQHxp89EZ/I3sCiJ6TAenuIqn+qxSivHccl3QLgNBrRkKVTy2DaE7\ny5waWawV2sxckzlOCsKekALFugMnL7FeA2cznP5ltvGwG/80TcVIDGXm7bHgvetA\nelGQ2Lqkv+wrqpls3iOV0nk5/TrzBlupbRUyTCECgYEA4kv/6prAlIaVToxf1HMa\nz+NSD6wh+WHSrWoC/MR4FndG6uBAra4bKmPJlZM4xoWlaYZ55XrQ+WKainQ5Bsic\n46eiaEJUbFLtagGDBi42hLkH8z2iCGSuoi1bCR1PUkmpBzTozQVpwQyQzQX/iBq3\nc3wi3Gj7pJpXdRJujQ6coKY=\n-----END PRIVATE KEY-----\n",
+  "client_email": "dabin-1@able-pottery-488710-p1.iam.gserviceaccount.com",
+  "client_id": "116231764560200210697",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/dabin-1%40able-pottery-488710-p1.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
+"; 
 
     const liveBubble = document.getElementById('live-bubble');
     const lucaWrapper = document.getElementById('luca-wrapper');
