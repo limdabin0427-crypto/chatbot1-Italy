@@ -18,18 +18,15 @@
             box-shadow: 0 0 30px rgba(0,0,0,0.5);
         }
 
-        /* 🎬 4개의 GIF가 자연스럽게 전환되는 배경 슬라이드쇼 시스템 */
+        /* 🎬 생동감 넘치는 4개의 GIF 크로스페이드 배경 슬라이드쇼 (블러 제거) */
         .bg-slideshow {
             position: absolute; top: 0; left: 0;
             width: 100%; height: 100%;
             z-index: 1; pointer-events: none;
-            /* 루카와 채팅창이 돋보이도록 배경에 살짝 블러 및 어둡게 처리 */
-            filter: blur(4px); 
-            transform: scale(1.05); /* 블러 처리 시 가장자리 흰 선 방지 */
         }
         .bg-slideshow::after {
             content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 15, 20, 0.45); /* 가독성을 위한 어두운 틴트 레이어 */
+            background: rgba(15, 15, 20, 0.35); /* 가독성을 확보하면서도 쨍함을 유지하는 투명도 조절 */
             z-index: 2;
         }
         .bg-slide {
@@ -40,13 +37,11 @@
             opacity: 0;
             animation: slideFade 24s infinite ease-in-out;
         }
-        /* 배경 이미지 파일 매핑 */
         .slide1 { background-image: url('italy background 1.gif'); animation-delay: 0s; }
         .slide2 { background-image: url('italy background 2.gif'); animation-delay: 6s; }
         .slide3 { background-image: url('italy background 3.gif'); animation-delay: 12s; }
         .slide4 { background-image: url('italy background 4.gif'); animation-delay: 18s; }
 
-        /* 24초 총 주기 동안 4개의 이미지가 페이드 인/아웃 되도록 계산 */
         @keyframes slideFade {
             0% { opacity: 0; }
             4% { opacity: 1; }
@@ -55,11 +50,20 @@
             100% { opacity: 0; }
         }
 
-        /* 콘텐츠 영역 (배경 위에 배치되도록 z-index 설정) */
+        /* 🤖 캐릭터 및 콘텐츠 전면 레이어 */
         #character-area {
             position: relative; width: 100%; height: 35vh; min-height: 220px;
             display: flex; justify-content: center; align-items: flex-end; z-index: 3;
             perspective: 1000px; padding-top: 20px;
+        }
+
+        /* 깨지는 국기 이모지 대신 들어갈 GIF 국기 스타일 */
+        #italy-flag-img {
+            position: absolute; top: 15px; left: 15px;
+            width: 50px; height: auto;
+            border-radius: 4px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            z-index: 4;
         }
 
         #luca-wrapper {
@@ -78,7 +82,7 @@
             position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
             background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(10px);
             padding: 12px 18px; border-radius: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-            width: 75%; max-width: 280px; text-align: center; font-size: 18px; font-weight: 700; color: #1d1d1f;
+            width: 55%; max-width: 240px; text-align: center; font-size: 18px; font-weight: 700; color: #1d1d1f;
             z-index: 5; word-break: keep-all; pointer-events: none; display: none;
         }
         #live-bubble::after {
@@ -131,6 +135,8 @@
         </div>
 
         <div id="character-area">
+            <img id="italy-flag-img" src="italy flag.gif" alt="Italy Flag">
+            
             <div id="live-bubble">Click START! 👇</div>
             <div id="luca-wrapper">
                 <img id="luca-character" src="OIP_Luca_paguro_png.PNG" alt="Luca">
@@ -141,7 +147,7 @@
 
         <div id="control-panel">
             <div id="hint">Let's chat with Luca!</div>
-            <button id="start-btn" onclick="startApp()">START 🇮🇹</button>
+            <button id="start-btn" onclick="startApp()">START (ITALY)</button>
             <button id="mic-btn">🎙️</button>
         </div>
     </div>
@@ -182,7 +188,7 @@
     function addChatMessage(sender, text) {
         let formattedText = text.trim();
         
-        // 첫 글자 대문자 적용 규칙 유지
+        // 사용자가 발화한 문장의 첫 글자 대문자 자동 포맷팅 적용
         if (sender === 'user' && formattedText.length > 0) {
             formattedText = formattedText.charAt(0).toUpperCase() + formattedText.slice(1);
         }
