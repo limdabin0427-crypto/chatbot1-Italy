@@ -3,265 +3,252 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luca - Premium Talking Bot</title>
+    <title>Luca - Gemini AI Messenger</title>
     <style>
         body, html {
             margin: 0; padding: 0; height: 100%; overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: url('https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed;
+            background: #1e1e24;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        #app-container {
+            width: 100%; max-width: 450px; height: 100%;
+            background: url('https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?q=80&w=2000&auto=format&fit=crop') no-repeat center center;
             background-size: cover;
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+            position: relative; display: flex; flex-direction: column; overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
         }
-
-        #main-stage {
-            position: relative;
-            width: 100%; height: 100%;
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-        }
-
-        #main-stage::before {
+        #app-container::before {
             content: ''; position: absolute; top:0; left:0; width:100%; height:100%;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.4));
-            z-index: 1; pointer-events: none;
+            background: rgba(20, 20, 25, 0.4); z-index: 1; pointer-events: none;
         }
 
-        /* 3D 루카 배치 공간 (화면 높이에 맞춰 유연하게 조절되도록 세팅) */
-        #luca-container {
-            position: absolute;
-            bottom: 210px; /* 컨트롤 패널 및 말풍선 공간 위로 캐릭터 배치 */
-            width: 260px;
-            height: 45vh; /* 화면 높이의 45%만 차지하도록 유연하게 변경 */
-            display: flex; justify-content: center; align-items: flex-end;
-            transform-style: preserve-3d;
-            animation: idle3D 4s ease-in-out infinite alternate;
-            z-index: 2;
+        #character-area {
+            position: relative; width: 100%; height: 35vh; min-height: 220px;
+            display: flex; justify-content: center; align-items: flex-end; z-index: 2;
+            perspective: 1000px; padding-top: 20px;
+        }
+        #luca-wrapper {
+            position: relative; width: 150px; height: 200px;
+            transform-style: preserve-3d; animation: idle3D 4s ease-in-out infinite alternate;
         }
         @keyframes idle3D {
-            0% { transform: rotateY(-4deg) translateY(0px); }
-            100% { transform: rotateY(4deg) translateY(-8px); }
+            0% { transform: rotateY(-5deg) translateY(0px); }
+            100% { transform: rotateY(5deg) translateY(-6px); }
         }
-
-        #luca-character {
-            width: 100%; height: 100%; object-fit: contain;
-            filter: drop-shadow(0px 15px 20px rgba(0,0,0,0.4));
-        }
-
+        #luca-character { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3)); }
         .talking #luca-character { animation: bodyTalk 0.4s infinite alternate; }
-        @keyframes bodyTalk { 0% { transform: scale(1); } 100% { transform: scale(1.04); } }
+        @keyframes bodyTalk { 0% { transform: scale(1); } 100% { transform: scale(1.05); } }
 
-        /* 🎛️ 하단 컨트롤러 영역 (검정 칸을 기준으로 말풍선을 쌓기 위해 컨테이너 성격 부여) */
+        #live-bubble {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(10px);
+            padding: 12px 18px; border-radius: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            width: 75%; max-width: 280px; text-align: center; font-size: 18px; font-weight: 700; color: #1d1d1f;
+            z-index: 5; word-break: keep-all; pointer-events: none; display: none;
+        }
+        #live-bubble::after {
+            content: ''; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+            border-width: 10px 10px 0; border-style: solid; border-color: rgba(255, 255, 255, 0.96) transparent;
+        }
+
+        #chat-history {
+            flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px;
+            z-index: 2; box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(5px);
+            border-top-left-radius: 30px; border-top-right-radius: 30px;
+        }
+        #chat-history::-webkit-scrollbar { display: none; }
+
+        .msg { max-width: 75%; padding: 12px 16px; border-radius: 18px; font-size: 16px; font-weight: 600; line-height: 1.4; word-break: break-word; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .msg.luca { align-self: flex-start; background: #ffffff; color: #1d1d1f; border-top-left-radius: 2px; }
+        .msg.user { align-self: flex-end; background: #00b09b; color: #ffffff; border-top-right-radius: 2px; }
+
         #control-panel {
-            position: relative;
-            width: 92%; max-width: 440px;
-            background: rgba(20, 20, 25, 0.82); 
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            padding: 22px 20px; margin-bottom: 20px; text-align: center; color: white; 
-            border-radius: 30px; border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4); box-sizing: border-box; 
-            z-index: 10;
+            background: rgba(20, 20, 25, 0.9); padding: 20px; text-align: center; color: white;
+            box-sizing: border-box; z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 10px;
         }
-
-        /* 💬 [절대 겹침 방지] 검정 박스 상단에 자석처럼 매달려 있는 구조의 말풍선 */
-        #bubble {
-            position: absolute; 
-            bottom: calc(100% + 15px); /* 검정 박스 맨 윗부분에서 무조건 15px 위에 배치 */
-            left: 50%; transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.96); /* 조금 더 선명한 흰색으로 루카 몸과 겹쳐도 글씨 가독성 확보 */
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            padding: 16px 22px; border-radius: 22px;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.2); 
-            width: 90%; max-width: 340px;
-            text-align: center; font-size: 22px; line-height: 1.4; font-weight: 700; color: #1d1d1f; 
-            word-break: keep-all; 
-            z-index: 15; /* 루카 캐릭터보다 무조건 앞에 뜨도록 레이어 상향 */
-            pointer-events: none; 
-        }
-        /* 말풍선 아래쪽 화살표 고정 */
-        #bubble::after {
-            content: ''; position: absolute; 
-            bottom: -12px; left: 50%; transform: translateX(-50%);
-            border-width: 12px 12px 0; border-style: solid; 
-            border-color: rgba(255, 255, 255, 0.96) transparent;
-        }
-
-        /* 🇮🇹 이탈리아 국기 배지 */
-        #flag-container {
-            position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-            width: 45px; height: 26px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            background: linear-gradient(to right, #008C45 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #CD212A 66.6%);
-            border-radius: 6px; border: 1.5px solid rgba(255,255,255,0.2);
-        }
-
-        #hint { color: #f5f5f7; margin-top: 10px; margin-bottom: 18px; font-size: 16px; font-weight: 500; opacity: 0.9; }
+        #hint { color: #FFEB3B; font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
         
         #mic-btn {
-            width: 76px; height: 76px; border-radius: 50%; border: none;
-            background: linear-gradient(135deg, #ff416c, #ff4b2b); 
-            color: white; font-size: 30px; cursor: pointer;
-            box-shadow: 0 8px 20px rgba(255, 65, 108, 0.4); 
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: none; margin: 0 auto;
+            width: 70px; height: 70px; border-radius: 50%; border: none;
+            background: linear-gradient(135deg, #ff416c, #ff4b2b); color: white; font-size: 28px; cursor: pointer;
+            box-shadow: 0 6px 15px rgba(255, 65, 108, 0.4); transition: all 0.2s; display: none;
         }
-        #mic-btn:active { transform: scale(0.92); }
-        #mic-btn.recording { 
-            background: linear-gradient(135deg, #11998e, #38ef7d); 
-            box-shadow: 0 0 30px rgba(56, 239, 125, 0.8); animation: pulse 1.4s infinite; 
-        }
+        #mic-btn.recording { background: linear-gradient(135deg, #11998e, #38ef7d); box-shadow: 0 0 25px rgba(56, 239, 125, 0.7); animation: pulse 1.4s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
 
         #start-btn {
-            padding: 14px 45px; font-size: 20px; font-weight: 700;
+            padding: 14px 45px; font-size: 18px; font-weight: 700;
             background: linear-gradient(135deg, #00b09b, #96c93d); color: white; border: none;
-            border-radius: 50px; cursor: pointer; box-shadow: 0 8px 20px rgba(0, 176, 155, 0.4); transition: all 0.3s;
+            border-radius: 50px; cursor: pointer; box-shadow: 0 6px 15px rgba(0, 176, 155, 0.4);
         }
-        #start-btn:active { transform: scale(0.95); }
-
-        #recognized-text { font-size: 14px; color: #a1a1a6; margin-top: 12px; font-weight: 500; min-height: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="main-stage">
-        <div id="luca-container">
-            <img id="luca-character" src="OIP_Luca_paguro_png.PNG" alt="Luca">
+    <div id="app-container">
+        <div id="character-area">
+            <div id="live-bubble">Click START! 👇</div>
+            <div id="luca-wrapper">
+                <img id="luca-character" src="OIP_Luca_paguro_png.PNG" alt="Luca">
+            </div>
         </div>
 
+        <div id="chat-history"></div>
+
         <div id="control-panel">
-            <div id="bubble">Click START! 👇</div>
-            
-            <div id="flag-container"></div>
-            <div id="hint">Let's talk with Luca!</div>
-            <button id="start-btn" onclick="startApp()">START</button>
+            <div id="hint">Let's chat with Luca!</div>
+            <button id="start-btn" onclick="startApp()">START 🇮🇹</button>
             <button id="mic-btn">🎙️</button>
-            <p id="recognized-text"></p>
         </div>
     </div>
 
 <script>
-    const bubble = document.getElementById('bubble');
-    const lucaContainer = document.getElementById('luca-container');
+    // ⚠️ [선생님 설정용] 여기에 구글 Gemini API Key를 입력하세요!
+    const GEMINI_API_KEY = "able-pottery-488710-p1-1d2ed7ec46b3"; 
+
+    const liveBubble = document.getElementById('live-bubble');
+    const lucaWrapper = document.getElementById('luca-wrapper');
+    const chatHistory = document.getElementById('chat-history');
     const hint = document.getElementById('hint');
     const startBtn = document.getElementById('start-btn');
     const micBtn = document.getElementById('mic-btn');
-    const recognizedText = document.getElementById('recognized-text');
 
-    let step = 0;
     let voices = [];
-
-    function loadVoices() {
-        voices = window.speechSynthesis.getVoices();
-    }
-    loadVoices();
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
     
+    // ⭐ Gemini API의 대화 구조에 맞춘 기록 저장소
+    let chatContents = [];
+    
+    // 루카의 성격 정의 프롬프트 (Gemini System Instruction용)
+    const systemInstruction = "You are Luca, a friendly 10-year-old Italian boy. Speak in very simple English for a 3rd-grade elementary student (CEFR A1 level). Keep answers very short (1 or 2 sentences max). Ask simple questions about food, hobbies, or sports like 'Do you like pizza?' or 'Do you like ice cream?'. Do not use emojis in your response.";
+
+    function loadVoices() { voices = window.speechSynthesis.getVoices(); }
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) window.speechSynthesis.onvoiceschanged = loadVoices;
+
     function startApp() {
         startBtn.style.display = 'none';
         micBtn.style.display = 'block';
+        liveBubble.style.display = 'block';
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 
         setTimeout(() => {
-            speak("Ciao! My name is Luca! Nice to meet you. Do you like Pizza?", () => {
-                hint.innerText = "🎙️ 버튼을 누르고 대답해보세요!";
-                recognizedText.innerText = '추천 대답: "Yes, I do." 또는 "No, I don\'t."';
-            });
-            step = 1;
+            const greeting = "Ciao! My name is Luca! Nice to meet you. Do you like Pizza?";
+            addChatMessage('luca', greeting);
+            
+            // 첫 인사 기록 누적
+            chatContents.push({ role: "model", parts: [{ text: greeting }] });
+            
+            speak(greeting, () => { hint.innerText = "🎙️ 버튼을 누르고 대답해보세요!"; });
         }, 300);
     }
 
+    function addChatMessage(sender, text) {
+        const msgBubble = document.createElement('div');
+        msgBubble.classList.add('msg', sender);
+        msgBubble.innerText = text;
+        chatHistory.appendChild(msgBubble);
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+
     function speak(text, callback) {
-        window.speechSynthesis.cancel(); 
-        bubble.innerHTML = text;
+        window.speechSynthesis.cancel();
+        liveBubble.innerText = text;
         
-        const utterance = new SpeechSynthesisUtterance(text.replace(/<br>/g, " "));
+        const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
-        utterance.rate = 0.8; 
-        utterance.pitch = 1.45; 
+        utterance.rate = 0.8;
+        utterance.pitch = 1.45; // 소년 음색
         
         if (voices.length > 0) {
-            const preferredVoice = voices.find(v => 
-                v.lang.startsWith('en') && 
-                (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('google'))
-            ) || voices.find(v => v.lang.startsWith('en'));
-            if (preferredVoice) {
-                utterance.voice = preferredVoice;
-                if (preferredVoice.name.toLowerCase().includes('female')) {
-                    utterance.pitch = 1.15; 
-                }
-            }
+            const preferredVoice = voices.find(v => v.lang.startsWith('en') && (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('google'))) || voices.find(v => v.lang.startsWith('en'));
+            if (preferredVoice) utterance.voice = preferredVoice;
         }
         
-        lucaContainer.classList.add('talking');
+        lucaWrapper.classList.add('talking');
         utterance.onend = () => {
-            lucaContainer.classList.remove('talking');
+            lucaWrapper.classList.remove('talking');
             if (callback) callback();
         };
         window.speechSynthesis.speak(utterance);
     }
 
+    // 🌐 [핵심 업데이트] Google Gemini API 호출 함수
+    async function fetchAIResponse(userMessage) {
+        if (!GEMINI_API_KEY) {
+            // 로컬 테스트용 임시 로직
+            if (userMessage.includes("yes")) return "Oh, I like Pizza too! It's good! Do you like ice cream?";
+            if (userMessage.includes("ice") || userMessage.includes("cream")) return "Yes, I do! I love ice cream! Do you like snacks?";
+            return "Wow, that's cool! Tell me more!";
+        }
+
+        // 유저 입력 추가
+        chatContents.push({ role: "user", parts: [{ text: userMessage }] });
+
+        // 가장 빠르고 교육용 가성비가 최고인 gemini-2.5-flash 모델 적용
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: chatContents,
+                    systemInstruction: { parts: [{ text: systemInstruction }] }, // 페르소나 주입
+                    generationConfig: {
+                        maxOutputTokens: 60,
+                        temperature: 0.7
+                    }
+                })
+            });
+            
+            const data = await response.json();
+            const aiText = data.candidates[0].content.parts[0].text.trim();
+            
+            // 모델 답변 저장
+            chatContents.push({ role: "model", parts: [{ text: aiText }] });
+            return aiText;
+        } catch (error) {
+            console.error("Gemini API 호출 오류:", error);
+            return "Sorry, I am a bit confused. Can you say that again?";
+        }
+    }
+
+    // STT 음성 인식 설정
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition;
-    
     if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
+        const recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
-        recognition.interimResults = false;
 
         micBtn.onclick = () => {
             try {
                 recognition.start();
                 micBtn.classList.add('recording');
-                recognizedText.innerText = "Listening...👂 (듣고 있어요)";
+                hint.innerText = "Listening...👂 (듣고 있어요)";
             } catch (e) {}
         };
 
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript.toLowerCase();
-            recognizedText.innerHTML = `내가 한 말: <span style="color:#38ef7d; font-weight:700;">"${transcript}"</span>`;
-            handleConversation(transcript);
-        };
-        recognition.onend = () => { micBtn.classList.remove('recording'); };
-    }
+        recognition.onresult = async (event) => {
+            const transcript = event.results[0][0].transcript;
+            
+            addChatMessage('user', transcript);
+            hint.innerText = "Luca가 생각하고 있어요...";
 
-    function handleConversation(input) {
-        if (step === 1) {
-            if (input.includes("yes")) {
-                speak("Oh! I like Pizza too! It's good!", () => {
-                    nextStep("Now, ask me: Do you like ice cream?", "루카에게 아이스크림을 좋아하는지 물어보세요!");
-                    recognizedText.innerText = '추천 질문: "Do you like ice cream?"';
-                });
-            } else {
-                speak("Oh, Okay!", () => {
-                    nextStep("Now, ask me: Do you like ice cream?", "루카에게 아이스크림을 좋아하는지 물어보세요!");
-                    recognizedText.innerText = '추천 질문: "Do you like ice cream?"';
-                });
-            }
-            step = 2;
-        } else if (step === 2 && (input.includes("ice") || input.includes("cream"))) {
-            speak("Yes, I do. I like ice cream. Do you like ice cream?", () => {
+            // Gemini API 호출
+            const lucaResponse = await fetchAIResponse(transcript);
+            
+            addChatMessage('luca', lucaResponse);
+            speak(lucaResponse, () => {
                 hint.innerText = "🎙️ 버튼을 누르고 대답해보세요!";
-                recognizedText.innerText = '추천 대답: "Yes, I do." 또는 "No, I don\'t."';
             });
-            step = 3;
-        } else if (step === 2) {
-            speak("Can you ask me 'Do you like ice cream?'", () => {
-                hint.innerText = "🎙️ 버튼을 누르고 다시 한 번 물어봐주세요.";
-            });
-        } else if (step === 3) {
-            speak("Oh, great! Come to Italy! Bye Bye!", () => {
-                hint.innerText = "🎉 참 잘했어요! 대화가 끝났습니다.";
-                recognizedText.innerText = "";
-            });
-            step = 4;
-        }
-    }
+        };
 
-    function nextStep(text, hintText) {
-        setTimeout(() => {
-            speak(text);
-            hint.innerText = hintText;
-        }, 1200);
+        recognition.onend = () => { micBtn.classList.remove('recording'); };
+    } else {
+        alert("크롬 앱을 사용해주세요!");
     }
 </script>
 </body>
