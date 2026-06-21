@@ -126,6 +126,15 @@
 </head>
 <body>
 
+    <div id="login-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; display:flex; justify-content:center; align-items:center;">
+        <div style="background:white; padding:30px; border-radius:15px; text-align:center; max-width:320px; width:85%; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+            <h3 style="margin-top:0; color:#222; font-size:20px;">🇮🇹 루카 챗봇 시작하기</h3>
+            <p style="font-size:14px; color:#666; line-height:1.4;">반갑습니다! 수업 기록을 위해<br><b>학번과 이름</b>을 입력해주세요.<br>(예: 30101 홍길동)</p>
+            <input type="text" id="student-name-input" placeholder="예: 3101 김민지" style="width:90%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:8px; text-align:center; font-size:16px;">
+            <button id="login-submit-btn" style="background:#00935b; color:white; border:none; padding:12px 20px; border-radius:8px; font-size:16px; cursor:pointer; width:98%; font-weight:bold;">등록하기 🚀</button>
+        </div>
+    </div>
+
     <div id="app-container">
         <div class="bg-slideshow">
             <div class="bg-slide slide1"></div>
@@ -163,6 +172,20 @@
     let voices = [];
     let step = 0; 
     let studentName = ""; 
+    
+    // 🔒 학생 로그인 정보 기억용 방 (새로 추가됨)
+    let studentInfo = ""; 
+    window.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('login-submit-btn').onclick = () => {
+            const nameInput = document.getElementById('student-name-input').value.trim();
+            if(nameInput === "") {
+                alert("학번과 이름을 꼭 적어주세요! 😊");
+                return;
+            }
+            studentInfo = nameInput;
+            document.getElementById('login-overlay').style.display = 'none'; // 로그인창 닫기
+        };
+    });
 
     function loadVoices() { voices = window.speechSynthesis.getVoices(); }
     loadVoices();
@@ -180,7 +203,7 @@
             const greeting = "Ciao! Hello!";
             addChatMessage('luca', greeting);
             speak(greeting, () => { 
-                hint.innerText = "🎙️ 루카에게 'Hi' 또는 'Hello'라고 인사해보세요!"; 
+                hint.innerText = "🎙️ 루카에게 인사를 건네며 대화를 시작해보세요!"; 
             });
         }, 300);
     }
@@ -188,7 +211,6 @@
     function addChatMessage(sender, text) {
         let formattedText = text.trim();
         
-        // 사용자가 발화한 문장의 첫 글자 대문자 자동 포맷팅 적용
         if (sender === 'user' && formattedText.length > 0) {
             formattedText = formattedText.charAt(0).toUpperCase() + formattedText.slice(1);
         }
@@ -222,87 +244,32 @@
         window.speechSynthesis.speak(utterance);
     }
 
-    function handleConversation(input) {
-        const cleanInput = input.toLowerCase().trim();
+    // 🔗 파이썬 백엔드 서버 및 구글 스프레드시트 연동용 핵심 대화 함수 (교체 완료)
+    async function handleConversation(userInput) {
+        try {
+            // 배포된 파이썬 백엔드로 [학생 이름]과 [학생이 한 말]을 보냅니다.
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    student: studentInfo, 
+                    message: userInput 
+                })
+            });
 
-        if (step === 0) {
-            if (cleanInput.includes("hi") || cleanInput.includes("hello")) {
-                step = 1;
-                setTimeout(() => {
-                    const nextText = "I'm Luca. What's your name?";
-                    addChatMessage('luca', nextText);
-                    speak(nextText, () => {
-                        hint.innerText = "🎙️ 'My name is oo' 또는 'I'm oo'라고 이름을 말해보세요.";
-                    });
-                }, 1000);
-            } else {
-                speak("Say Hi or Hello!", () => {
-                    hint.innerText = "🎙️ 다시 한 번 'Hi' 또는 'Hello'라고 해보세요!";
-                });
-            }
-        } 
-        else if (step === 1) {
-            let detectedName = "my friend";
-            if (cleanInput.includes("my name is")) {
-                detectedName = input.substring(input.toLowerCase().indexOf("is") + 2).trim();
-            } else if (cleanInput.includes("i am")) {
-                detectedName = input.substring(input.toLowerCase().indexOf("am") + 2).trim();
-            } else if (cleanInput.includes("i'm") || cleanInput.includes("im")) {
-                const index = input.toLowerCase().includes("i'm") ? input.toLowerCase().indexOf("i'm") + 3 : input.toLowerCase().indexOf("im") + 2;
-                detectedName = input.substring(index).trim();
-            } else {
-                detectedName = input.trim();
-            }
+            // 구글 시트에 기록을 마친 백엔드가 돌려준 답변 데이터 수신
+            const data = await response.json();
             
-            studentName = detectedName.charAt(0).toUpperCase() + detectedName.slice(1);
-            
-            step = 2;
-            setTimeout(() => {
-                const nextText = `Nice to meet you, ${studentName}! I'm from Italy. Do you like pizza?`;
-                addChatMessage('luca', nextText);
-                speak(nextText, () => {
-                    hint.innerText = "🎙️ 'Yes, I do.' 또는 'No, I don't.'라고 답해보세요.";
-                });
-            }, 1000);
-        } 
-        else if (step === 2) {
-            let replyText = "";
-            if (cleanInput.includes("yes")) {
-                replyText = "Oh, I like pizza too! It's so good!";
-            } else {
-                replyText = "Oh, okay! Pizza is not your favorite.";
-            }
+            // 루카가 화면에 답변을 띄우고 영어 말하기 시작
+            addChatMessage('luca', data.reply); 
+            speak(data.reply); 
 
-            step = 3;
-            setTimeout(() => {
-                addChatMessage('luca', replyText);
-                speak(replyText, () => {
-                    setTimeout(() => {
-                        const askMe = "Now, ask me: Do you like ice cream?";
-                        addChatMessage('luca', askMe);
-                        speak(askMe, () => {
-                            hint.innerText = "🎙️ 루카에게 'Do you like ice cream?'이라고 질문해 보세요!";
-                        });
-                    }, 1000);
-                });
-            }, 500);
-        } 
-        else if (step === 3) {
-            if (cleanInput.includes("ice") || cleanInput.includes("cream") || cleanInput.includes("like")) {
-                step = 4;
-                setTimeout(() => {
-                    const finalReply = "Yes, I do! I love ice cream! Come to Italy! Bye Bye!";
-                    addChatMessage('luca', finalReply);
-                    speak(finalReply, () => {
-                        hint.innerText = "🎉 대화 성공! 참 잘했어요!";
-                        micBtn.style.display = 'none'; 
-                    });
-                }, 1000);
-            } else {
-                speak("Can you ask me: Do you like ice cream?", () => {
-                    hint.innerText = "🎙️ 'Do you like ice cream?'이라고 소리 내어 물어봐 주세요.";
-                });
-            }
+        } catch (error) {
+            console.error("백엔드 연결 실패 😭:", error);
+            addChatMessage('luca', "Sorry, I missed that. Can you say it again?");
+            speak("Sorry, I missed that.");
         }
     }
 
