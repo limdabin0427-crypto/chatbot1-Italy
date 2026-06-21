@@ -1,35 +1,49 @@
 import os
 import json
+import re
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 import gspread
 from google.oauth2.service_account import Credentials
 
+# OpenAI 공식 라이브러리 추가
+from openai import OpenAI
+
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
-# 1. Render 환경변수에 넣었던 구글 서비스 계정 키 로드
+# 🔑 Render 환경변수에 등록한 OpenAI API 키와 구글 키 가져오기
+# (Render Dashboard -> Environment Variables에 OPENAI_API_KEY도 꼭 추가해주세요!)
+OPENAI_KEY = os.environ.get("OPENAI_API_KEY")
+client = OpenAI(api_key=OPENAI_KEY) if OPENAI_KEY else None
+
+# 📊 구글 스프레드시트 연동 설정
 try:
     service_account_info = json.loads(os.environ.get("GOOGLE_SERVICE_ACCOUNT"))
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
     gc = gspread.authorize(creds)
     
-    # ⚠️여기에 아까 복사한 선생님의 구글 스프레드시트 ID를 붙여넣으세요!
+    # ⚠️여기에 선생님의 구글 스프레드시트 ID(주소창 중간의 긴 문자열)를 꼭 넣어주세요!
     SPREADSHEET_ID = "선생님의_구글_시트_ID를_여기에_넣으세요" 
     sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
 except Exception as e:
-    print(f"구글 시트 연결 실패(체크 필요): {e}")
+    print(f"구글 시트 연동 실패: {e}")
     sheet = None
 
-# 초3 맞춤형 루카 대화 규칙
+# 🇮🇹 초등학교 3학년 학생 맞춤형 대화 규칙 (페다고지 프롬프트)
 LUCA_RULE = """
 You are Luca, a friendly 10-year-old boy from Italy. 
-Your user is a 3rd-grade elementary school student in South Korea who is just starting to learn English.
-1. Use simple sentences (Max 1-2 sentences).
-2. End with an easy question to keep the conversation going.
-3. Accept single-word answers.
+Your user is a 3rd-grade elementary school student in South Korea who is just starting to learn English (CEFR A1 level). They have just learned the alphabet.
+
+Follow these strict pedagogical rules for conversation:
+1. [Length & Vocabulary]: Use extremely simple, short sentences (Max 1-2 sentences per reply). Use words familiar to 10-year-old Korean kids (colors, animals, food, weather, school supplies).
+2. [Keep It Going]: Always end your reply with a very easy question to guide the conversation (e.g., "What is your favorite color?", "Do you like apples?").
+3. [Accept Word-Only Answers]: If the student answers with just a single word (e.g., "Apple" or "Red"), accept it warmly and keep the conversation going naturally. Do not criticize.
+4. [Teacher's Feedback]: If the student's answer is completely irrelevant, weird, or broken, act like a kind teacher. Provide a gentle hint or say, "Try saying this: [Easy Sentence]".
+5. [Handling "I don't know"]: If the student says "I don't know" or cannot answer, move on immediately to the core target sentence of the lesson.
+6. [Lesson Flow]: Start with brief small talk first (asking about feelings: "How are you today?"). After 1-2 turns, smoothly transition to the core target sentence: "Do you like [something]?".
 """
 
 @app.route('/')
@@ -39,22 +53,41 @@ def home():
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.get_json()
-    student_info = data.get('student', 'Unknown Student') # 프론트에서 보낸 학번/이름
-    user_message = data.get('message', '') # 학생이 한 말
+    student_info = data.get('student', 'Unknown Student')
+    user_message = data.get('message', '')
     
-    # 임시 대답 (나중에 OpenAI 연결 시 진짜 AI 답변으로 바뀜)
-    sample_reply = f"Ciao! I'm Luca. How are you today? 😊"
+    # 기본 대답 설정
+    reply = "Hello! Let's talk!"
     
-    # 📊 구글 스프레드시트에 실시간 로그 기록 추가하기
+    # 🤖 1. 진짜 생성형 OpenAI AI 대화 구현하기
+    if client:
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini", # 가성비 좋고 빠른 최신 모델 사용
+                messages=[
+                    {"role": "system", "content": LUCA_RULE},
+                    {"role": "user", "content": user_message}
+                ],
+                max_tokens=60,
+                temperature=0.7
+            )
+            reply = response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"OpenAI API 에러: {e}")
+            reply = "I am a little shy today. Can you say that again?"
+    else:
+        # API 키가 안 들어왔을 때의 임시 작동 방지용 안전 장치
+        reply = f"Hi! I heard you say '{user_message}'. Do you like soccer?"
+
+    # 📊 2. 구글 스프레드시트에 실시간 로그 기록 추가
     if sheet:
         try:
             current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            # 시트 맨 아래에 [일시, 학생정보, 학생 말, 루카 대답]을 한 줄 추가합니다.
-            sheet.append_row([current_time, student_info, user_message, sample_reply])
+            sheet.append_row([current_time, student_info, user_message, reply])
         except Exception as e:
-            print(f"시트 기록 실패: {e}")
+            print(f"구글 시트 저장 실패: {e}")
 
-    return jsonify({'reply': sample_reply})
+    return jsonify({'reply': reply})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
