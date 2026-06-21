@@ -8,18 +8,24 @@ from flask_cors import CORS
 import gspread
 from google.oauth2.service_account import Credentials
 
-# OpenAI 공식 라이브러리 추가
-from openai import OpenAI
+# 🔑 Google GenAI 공식 라이브러리 및 구조화 출력을 위한 Pydantic 추가
+import google.generativeai as genai
+from pydantic import BaseModel, Field
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
-# 🔑 Render 환경변수에 등록한 OpenAI API 키와 구글 키 가져오기
-# (Render Dashboard -> Environment Variables에 OPENAI_API_KEY도 꼭 추가해주세요!)
-OPENAI_KEY = os.environ.get("OPENAI_API_KEY")
-client = OpenAI(api_key=OPENAI_KEY) if OPENAI_KEY else None
-if not OPENAI_KEY:
-    print("⚠️ OPENAI_API_KEY 환경변수가 비어있습니다. AI 대화가 동작하지 않습니다.")
+# 🔑 Render 환경변수에 등록한 Gemini API 키와 구글 키 가져오기
+# (Render Dashboard -> Environment Variables에 GEMINI_API_KEY를 추가해주세요!)
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
+if GEMINI_KEY:
+    genai.configure(api_key=GEMINI_KEY)
+    # 일반 텍스트 대화용 기본 모델 설정
+    text_model = genai.GenerativeModel("gemini-2.5-flash")
+else:
+    text_model = None
+    print("⚠️ GEMINI_API_KEY 환경변수가 비어있습니다. AI 대화가 동작하지 않고 고정 안내 문구만 나갑니다. "
+          "Render Dashboard > Environment에서 키를 정확히 등록해주세요.")
 
 # 📊 구글 스프레드시트 연동 설정
 sheet = None
@@ -29,8 +35,6 @@ try:
         raise RuntimeError("GOOGLE_SERVICE_ACCOUNT 환경변수가 비어있습니다.")
 
     service_account_info = json.loads(raw_creds)
-    # spreadsheets 범위만으로도 동작하지만, drive 범위를 같이 주면
-    # 권한 관련 에러(PERMISSION_DENIED)를 예방하는 데 도움이 됩니다.
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive",
@@ -47,83 +51,213 @@ except Exception as e:
     traceback.print_exc()
     sheet = None
 
-# 🇮🇹 초등학교 3학년 학생 맞춤형 대화 규칙 (페다고지 프롬프트)
-# ※ 이 규칙은 '루카가 생성하는 대화 답변'에만 적용됩니다.
-#   로그인 화면, 안내 문구(힌트), 버튼 등 사이트의 다른 이모지는 이 규칙과 무관하며 그대로 유지됩니다.
-LUCA_RULE = """
-You are Luca, a friendly 10-year-old boy from Italy. 
-Your user is a 3rd-grade elementary school student in South Korea who is just starting to learn English (CEFR A1 level). They have just learned the alphabet.
+# ─────────────────────────────────────────────────────────────
+# 🇮🇹 루카 페르소나 & 대화 규칙
+# ─────────────────────────────────────────────────────────────
+BASE_PERSONA = """
+You are Luca, a friendly 10-year-old boy from Italy talking with a 3rd-grade elementary
+school student in South Korea who just started learning English (CEFR A1 level, just learned the alphabet).
 
-Follow these strict pedagogical rules for every reply:
-1. [Short Sentences]: Your reply must always be just 1-2 sentences. Never write more than that.
-2. [Easy Vocabulary]: Use only words a Korean 3rd grader would know, such as colors, animals, food, weather, and school supplies. Nothing more advanced.
-3. [Always Ask Back]: Always end your reply with an easy question the child can answer, to keep the conversation going (e.g., "What is your favorite color?", "Do you like apples?").
-4. [Beginner-Friendly]: Remember this student just learned the alphabet. A single-word answer (e.g., "Apple", "Red", "Dog") is a complete, valid answer — respond warmly and keep the conversation going naturally, even if they only ever say one word at a time. Never criticize a short answer.
-5. [Teacher's Feedback]: If the answer is strange, off-topic, or clearly wrong, respond like a kind teacher: give a gentle hint or say something like "Try saying this: [simple example sentence]."
-6. [Can't Answer -> Move On]: If the student says "I don't know" or doesn't answer at all, don't dwell on it — move straight on to the lesson's core target sentence.
-7. [Small Talk, Then Core Sentence]: Start with a little small talk first (e.g., asking how they feel today). After 1-2 turns, smoothly transition to the core target sentence pattern: "Do you like [something]?".
-8. [No Emojis In Your Reply]: Never use emojis, emoticons, or special symbols in your reply. Your words are read aloud by a text-to-speech voice, and emojis get read out as awkward English (e.g. "smiling face"). Plain text only — this rule applies only to your own dialogue, nowhere else.
+Always follow these rules in every reply:
+- Your reply must always be just 1-2 short sentences. Never write more than that.
+- Use only words a Korean 3rd grader would know (colors, animals, food, weather, school supplies, simple feelings).
+- A single-word answer from the student (e.g. "Good", "Yes", "Pizza") is a complete, valid answer.
+  Respond warmly and naturally - never criticize a short answer.
+- Never use emojis, emoticons, or special symbols. Plain text only - your reply is read aloud by
+  a text-to-speech voice, and emojis get read out as awkward English (e.g. "smiling face").
 """
+
+# 모델이 그래도 이모지를 섞어 보낼 경우를 대비한 안전망 (루카의 대사에만 적용)
+EMOJI_PATTERN = re.compile(
+    "["
+    "\U0001F1E6-\U0001F1FF"
+    "\U0001F300-\U0001FAFF"
+    "\u2600-\u27BF"
+    "\u2B00-\u2BFF"
+    "]+", flags=re.UNICODE
+)
+
+
+def strip_emoji(text):
+    return EMOJI_PATTERN.sub('', text or '').strip()
+
+
+def looks_like_giveup(text):
+    """학생이 '모르겠어요/못하겠어요' 류로 포기 의사를 밝혔는지 대략적으로 판별."""
+    t = (text or '').strip().lower()
+    if not t:
+        return True
+    giveup_phrases = [
+        "i don't know", "i dont know", "idk", "i don't understand", "i dont understand",
+        "i can't", "i cant", "모르겠어요", "몰라요", "모르겠어", "모름",
+    ]
+    return any(p in t for p in giveup_phrases)
+
+
+def call_gemini_text(user_prompt, max_tokens=60):
+    """자유 문장 1~2문장을 생성하는 일반 호출."""
+    if not text_model:
+        return ""
+        
+    # 페르소나를 system_instruction으로 주입하여 규칙을 강제합니다.
+    persona_model = genai.GenerativeModel(
+        model_name="gemini-2.5-flash",
+        system_instruction=BASE_PERSONA
+    )
+    
+    config = genai.types.GenerationConfig(
+        max_output_tokens=max_tokens,
+        temperature=0.7
+    )
+    
+    response = persona_model.generate_content(user_prompt, generation_config=config)
+    return strip_emoji(response.text.strip())
+
+
+# Gemini JSON 출력을 강제하기 위한 Pydantic 구조 정의
+class EvaluationResult(BaseModel):
+    outcome: str = Field(description="'matched' or 'retry'")
+    reply: str = Field(description="if retry: ONE short warm English nudge from Luca (max 1 sentence), do NOT reveal the target sentence; if matched: empty string")
+
+
+def call_gemini_json(system_prompt, user_prompt):
+    """학생 발화가 목표 질문 의도와 맞는지 판정하는 구조화(JSON) 호출."""
+    # JSON 평가 모델은 별도의 시스템 지침과 함께 정의합니다.
+    json_model = genai.GenerativeModel(
+        model_name="gemini-2.5-flash",
+        system_instruction=system_prompt
+    )
+    
+    # response_mime_type과 response_schema를 사용하여 형식을 고정합니다.
+    config = genai.types.GenerationConfig(
+        temperature=0.3,
+        response_mime_type="application/json",
+        response_schema=EvaluationResult
+    )
+    
+    response = json_model.generate_content(user_prompt, generation_config=config)
+    raw = response.text.strip()
+    return json.loads(raw)
+
+
+# ─────────────────────────────────────────────────────────────
+# 📋 수업 흐름 (state machine)
+# ─────────────────────────────────────────────────────────────
+ASK_STAGES = {
+    'await_pizza_question': {
+        'target_desc': 'asking whether Luca likes pizza (e.g. "Do you like pizza?")',
+        'success_reply': "Yes, I do. I like pizza very much.",
+        'popup': "피자를 좋아하는지 영어로 물어보세요.",
+        'next_stage': 'await_icecream_question',
+        'next_popup': "아이스크림을 좋아하는지 영어로 물어보세요.",
+    },
+    'await_icecream_question': {
+        'target_desc': 'asking whether Luca likes ice cream (e.g. "Do you like ice cream?")',
+        'success_reply': "No, I don't. I don't like ice cream.",
+        'popup': "아이스크림을 좋아하는지 영어로 물어보세요.",
+        'next_stage': 'done',
+        'next_popup': None,
+    },
+}
+
 
 @app.route('/')
 def home():
     return render_template('index.html')
 
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    data = request.get_json()
+    data = request.get_json(force=True, silent=True) or {}
     student_info = data.get('student', 'Unknown Student')
-    user_message = data.get('message', '')
-    # 프론트엔드가 보내주는 이전 대화 기록 (없으면 빈 리스트)
-    history = data.get('history', [])
+    user_message = (data.get('message') or '').strip()
+    stage = data.get('stage') or 'await_feeling'
 
-    # 기본 대답 설정
-    reply = "Hello! Let's talk!"
+    reply = "Hi! Let's talk!"
+    popup = None
+    next_stage = stage
 
-    # 🤖 1. 진짜 생성형 OpenAI AI 대화 구현하기
-    if client:
+    if not text_model:
+        # API 키가 비어있을 때의 안전 장치
+        reply = "Sorry, I can't talk right now. Please ask your teacher to check my settings."
+        next_stage = stage
+    else:
         try:
-            # 시스템 규칙 + 이전 대화 기록을 모두 포함해서 보내야
-            # Luca가 직전 대화 맥락을 기억하고 자연스럽게 이어갑니다.
-            messages = [{"role": "system", "content": LUCA_RULE}]
-            for turn in history[-20:]:  # 토큰 절약을 위해 최근 20턴만 사용
-                role = turn.get('role')
-                content = (turn.get('content') or '').strip()
-                if role in ('user', 'assistant') and content:
-                    messages.append({"role": role, "content": content})
+            # 1) 스몰토크: "How are you?" 에 대한 답변
+            if stage == 'await_feeling':
+                if looks_like_giveup(user_message):
+                    reply = "That's okay! Do you like Kimbap?"
+                else:
+                    feedback = call_gemini_text(
+                        f'The student just answered "How are you?" with: "{user_message}". '
+                        f'Write ONE short, warm reaction (max 1 short sentence) to what they said. '
+                        f'Do not ask any question yourself.'
+                    )
+                    reply = f"{feedback} Do you like Kimbap?".strip()
+                next_stage = 'await_kimbap_answer'
 
-            # history에 이번 사용자 발화가 아직 없다면 마지막에 추가
-            if not history or history[-1].get('content') != user_message:
-                messages.append({"role": "user", "content": user_message})
+            # 2) 루카가 먼저 묻는 핵심 문장: "Do you like Kimbap?"
+            elif stage == 'await_kimbap_answer':
+                if looks_like_giveup(user_message):
+                    reply = "That's okay! Now you ask me a question."
+                else:
+                    feedback = call_gemini_text(
+                        f'The student just answered whether they like Kimbap with: "{user_message}". '
+                        f'Write ONE short, warm reaction (max 1 short sentence). Do not ask a question.'
+                    )
+                    reply = f"{feedback} Now you ask me a question.".strip()
+                next_stage = 'await_pizza_question'
+                popup = "피자를 좋아하는지 영어로 물어보세요."
 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini", # 가성비 좋고 빠른 최신 모델 사용
-                messages=messages,
-                max_tokens=80,
-                temperature=0.7
-            )
-            reply = response.choices[0].message.content.strip()
+            # 3) 역할 반전 단계 (피자 / 아이스크림): 학생이 직접 질문해야 함
+            elif stage in ASK_STAGES:
+                cfg = ASK_STAGES[stage]
+                if looks_like_giveup(user_message):
+                    reply = "That's okay! Let's try the next one."
+                    next_stage = cfg['next_stage']
+                    popup = cfg['next_popup']
+                else:
+                    try:
+                        system_prompt = (
+                            "You are judging a young Korean EFL beginner's spoken English attempt, "
+                            "transcribed by speech recognition so it may contain noise, typos, or odd grammar. "
+                            "Be lenient: judge by intent and key words, not exact wording or perfect pronunciation."
+                        )
+                        user_prompt = (
+                            f"Target: the student should be {cfg['target_desc']}.\n"
+                            f"Student said (speech-to-text, possibly imperfect): \"{user_message}\"\n\n"
+                            "Decide exactly one outcome:\n"
+                            "- \"matched\": a reasonable, recognizable attempt at the target question, even with grammar mistakes.\n"
+                            "- \"retry\": unrelated or unrecognizable, and the student has not given up."
+                        )
+                        result = call_gemini_json(system_prompt, user_prompt)
+                    except Exception:
+                        result = {"outcome": "retry", "reply": "Hmm, try asking me with 'Do you like...?'"}
 
-            # 만약 모델이 그래도 이모지를 섞어 보내면 서버 단에서 한 번 더 제거
-            # (이 reply 변수는 '루카가 하는 말'에만 해당 — 사이트의 다른 이모지는 영향 없음)
-            emoji_pattern = re.compile(
-                "["
-                "\U0001F1E6-\U0001F1FF"
-                "\U0001F300-\U0001FAFF"
-                "\u2600-\u27BF"
-                "\u2B00-\u2BFF"
-                "]+", flags=re.UNICODE
-            )
-            reply = emoji_pattern.sub('', reply).strip()
+                    if result.get('outcome') == 'matched':
+                        reply = cfg['success_reply']
+                        next_stage = cfg['next_stage']
+                        popup = cfg['next_popup']
+                    else:
+                        reply = strip_emoji(result.get('reply') or "Hmm, try asking me with 'Do you like...?'")
+                        next_stage = stage  # 같은 단계에 머물며 재시도
+                        popup = cfg['popup']  # 같은 팝업을 다시 보여줌
+
+            # 4) 수업 종료 이후: 자유 대화로 마무리
+            else:
+                reply = call_gemini_text(
+                    f'The lesson is finished. The student said: "{user_message}". '
+                    f'Reply warmly in ONE short sentence. Do not ask a new structured question.'
+                )
+                next_stage = 'done'
+
         except Exception as e:
-            print(f"OpenAI API 에러: {e}")
+            print(f"Gemini API 에러: {e}")
             traceback.print_exc()
             reply = "I am a little shy today. Can you say that again?"
-    else:
-        # API 키가 안 들어왔을 때의 임시 작동 방지용 안전 장치
-        reply = f"Hi! I heard you say '{user_message}'. Do you like soccer?"
+            next_stage = stage
 
-    # 📊 2. 구글 스프레드시트에 실시간 로그 기록 추가
+    # 📊 구글 스프레드시트에 실시간 로그 기록
     if sheet:
         try:
             current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -134,7 +268,8 @@ def chat():
     else:
         print("⚠️ 구글 시트가 연결되어 있지 않아 이번 대화는 기록되지 않았습니다.")
 
-    return jsonify({'reply': reply})
+    return jsonify({'reply': reply, 'popup': popup, 'stage': next_stage})
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
