@@ -26,7 +26,7 @@ try:
     gc = gspread.authorize(creds)
     
     # ⚠️여기에 선생님의 구글 스프레드시트 ID(주소창 중간의 긴 문자열)를 꼭 넣어주세요!
-    SPREADSHEET_ID = "선생님의_구글_시트_ID를_여기에_넣으세요" 
+    SPREADSHEET_ID = "1GrSDc23pBeeLZnEh3oeQwjEcOIAxH-cZPDBYPr8c3oY" 
     sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
 except Exception as e:
     print(f"구글 시트 연동 실패: {e}")
