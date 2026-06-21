@@ -119,6 +119,16 @@
             background: linear-gradient(135deg, #00b09b, #96c93d); color: white; border: none;
             border-radius: 50px; cursor: pointer; box-shadow: 0 6px 15px rgba(0, 176, 155, 0.4);
         }
+
+        /* 🇰🇷 한글 안내 팝업: 절대 음성으로 읽지 않고, 화면에만 표시되는 미션 안내문 */
+        #korean-popup {
+            position: absolute; top: 70px; left: 50%; transform: translateX(-50%) translateY(-10px);
+            background: #FFE066; color: #4a3700; padding: 12px 20px; border-radius: 16px;
+            font-size: 14px; font-weight: 700; max-width: 82%; text-align: center; line-height: 1.4;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.3); z-index: 8;
+            opacity: 0; pointer-events: none; transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+        #korean-popup.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     </style>
 </head>
 <body>
@@ -142,7 +152,8 @@
 
         <div id="character-area">
             <img id="italy-flag-img" src="italy flag.gif" alt="Italy Flag">
-            
+
+            <div id="korean-popup"></div>
             <div id="live-bubble">Click START! 👇</div>
             <div id="luca-wrapper">
                 <img id="luca-character" src="OIP_Luca_paguro_png.PNG" alt="Luca">
@@ -160,6 +171,7 @@
 
 <script>
     const liveBubble = document.getElementById('live-bubble');
+    const koreanPopup = document.getElementById('korean-popup');
     const lucaWrapper = document.getElementById('luca-wrapper');
     const chatHistory = document.getElementById('chat-history');
     const hint = document.getElementById('hint');
@@ -167,7 +179,9 @@
     const micBtn = document.getElementById('mic-btn');
 
     let voices = [];
-    let studentInfo = ""; 
+    let studentInfo = "";
+    let conversationHistory = []; // {role: 'user'|'assistant', content: string}[]
+    let stage = 'await_feeling';  // 백엔드와 동일한 단계 값을 추적
 
     window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('login-submit-btn').onclick = () => {
@@ -192,10 +206,26 @@
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 
+        // 첫 인사말은 AI 호출 없이 항상 동일한 문장으로 고정 출력합니다.
+        const opening = "Hi! How are you?";
+        stage = 'await_feeling';
+
         setTimeout(() => {
-            // 최초 인사말을 서버로부터 가져오기 위해 공백 전송
-            handleConversation("Hello");
+            addChatMessage('luca', opening);
+            conversationHistory.push({ role: 'assistant', content: opening });
+            speak(opening, () => {
+                hint.innerText = "🎙️ 버튼을 누르고 루카에게 대답해보세요!";
+            });
         }, 300);
+    }
+
+    function showKoreanPopup(text) {
+        koreanPopup.innerText = "📢 " + text;
+        koreanPopup.classList.add('show');
+    }
+
+    function hideKoreanPopup() {
+        koreanPopup.classList.remove('show');
     }
 
     function addChatMessage(sender, text) {
@@ -210,14 +240,18 @@
         chatHistory.scrollTop = chatHistory.scrollHeight;
     }
 
-    // 💡 개조 완료: 이모티콘 기호를 싹 도려내고 텍스트만 읽는 함수
+    // 💡 이모티콘을 모두 잘라내고 텍스트만 읽는 함수 (Unicode 속성 기반이라 신규 이모지도 포함)
+    // ※ 이 함수는 '루카가 말하는 대사(data.reply)'에만 사용됩니다.
+    //   로그인 화면, 안내 문구, 버튼 등 다른 곳의 이모지는 그대로 유지됩니다.
     function speak(text, callback) {
         window.speechSynthesis.cancel();
         liveBubble.innerText = text;
         
-        // 정규식을 사용해 문장 내 모든 이모티콘 및 특수 기호를 공백으로 지웁니다.
-        const emojiPattern = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F1E6}-\u{1F1FF}]/gu;
-        let cleanText = text.replace(emojiPattern, '').trim();
+        // \p{Extended_Pictographic}: 사실상 모든 그림 이모지를 포괄
+        // \p{Emoji_Presentation}, Regional_Indicator(국기), ZWJ(\u200D), 변형 선택자(\uFE0F),
+        // 키캡(\u20E3), 피부톤 모디파이어까지 함께 제거합니다.
+        const emojiPattern = /(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Regional_Indicator})(\u200D(\p{Extended_Pictographic}|\p{Emoji_Presentation}))*|\uFE0F|\u20E3|[\u{1F3FB}-\u{1F3FF}]/gu;
+        let cleanText = text.replace(emojiPattern, '').replace(/\s{2,}/g, ' ').trim();
         
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = 'en-US';
@@ -239,22 +273,37 @@
 
     // 🔗 파이썬 백엔드 API와 실시간 대화 및 로그 적재 처리
     async function handleConversation(userInput) {
+        // 직전 대화 맥락을 함께 보내야 Luca가 대화를 기억하고 자연스럽게 이어갑니다.
+        conversationHistory.push({ role: 'user', content: userInput });
+
         try {
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     student: studentInfo, 
-                    message: userInput 
+                    message: userInput,
+                    history: conversationHistory,
+                    stage: stage
                 })
             });
 
             const data = await response.json();
-            
+
+            conversationHistory.push({ role: 'assistant', content: data.reply });
+            if (data.stage) stage = data.stage;
+
             addChatMessage('luca', data.reply); 
+            // ⚠️ 팝업(data.popup)은 절대 speak()에 넘기지 않습니다 — 화면 표시 전용입니다.
             speak(data.reply, () => {
                 hint.innerText = "🎙️ 버튼을 누르고 루카에게 대답해보세요!";
             }); 
+
+            if (data.popup) {
+                showKoreanPopup(data.popup);
+            } else {
+                hideKoreanPopup();
+            }
 
         } catch (error) {
             console.error("백엔드 연결 실패:", error);
