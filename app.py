@@ -8,7 +8,6 @@ from flask_cors import CORS
 import gspread
 from google.oauth2.service_account import Credentials
 import google.generativeai as genai
-from pydantic import BaseModel, Field
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
@@ -94,35 +93,13 @@ def call_gemini(prompt, max_tokens=60):
         print(f"Gemini 에러: {e}")
         return ""
 
-class EvalResult(BaseModel):
-    outcome: str = Field(description="'matched' or 'retry'")
-    reply: str = Field(description="if retry: ONE complete short nudge sentence; if matched: empty string")
+def judge_pizza(t):
+    """피자 질문 판정 - 키워드 기반 (AI 불필요)"""
+    return 'pizza' in t
 
-def judge(target_desc, user_message, fallback):
-    """학생 발화가 목표에 맞는지 판정."""
-    if not GEMINI_KEY:
-        return {"outcome": "retry", "reply": fallback}
-    try:
-        sys_p = (
-            "You judge a Korean EFL beginner's speech (from speech-to-text, may be imperfect). "
-            "Be very lenient — judge by intent and key words only, not grammar."
-        )
-        usr_p = (
-            f"Target: student should be {target_desc}.\n"
-            f"Student said: \"{user_message}\"\n"
-            "Return 'matched' if recognizable attempt, 'retry' if clearly wrong/unrelated."
-        )
-        model = make_model(sys_p)
-        config = genai.types.GenerationConfig(
-            temperature=0.2,
-            response_mime_type="application/json",
-            response_schema=EvalResult
-        )
-        response = model.generate_content(usr_p, generation_config=config)
-        return json.loads(response.text.strip())
-    except Exception as e:
-        print(f"Judge 에러: {e}")
-        return {"outcome": "retry", "reply": fallback}
+def judge_icecream(t):
+    """아이스크림 질문 판정 - 키워드 기반 (AI 불필요)"""
+    return 'ice' in t or 'cream' in t or 'icecream' in t
 
 def has_yes(t):
     return any(w in t for w in ['yes', 'i do', 'yep', 'yeah', 'sure', 'of course'])
@@ -216,17 +193,12 @@ def chat():
         # 5) 피자 질문 — 학생: Do you like pizza?
         # ════════════════════════════════════════════════════
         elif stage == 'await_pizza_question':
-            result = judge(
-                'asking Luca whether he likes pizza (e.g. "Do you like pizza?")',
-                user_message,
-                "Try asking: Do you like pizza?"
-            )
-            if result.get('outcome') == 'matched':
+            if judge_pizza(t):
                 reply      = "Yes, I do. I like pizza!"
                 next_stage = 'await_icecream_question'
                 popup      = "아이스크림을 좋아하는지 영어로 물어보세요."
             else:
-                reply      = strip_emoji(result.get('reply') or "Try asking: Do you like pizza?")
+                reply      = "Hmm, try asking me: Do you like pizza?"
                 next_stage = 'await_pizza_question'
                 popup      = "피자를 좋아하는지 영어로 물어보세요."
 
@@ -234,17 +206,12 @@ def chat():
         # 6) 아이스크림 질문 — 학생: Do you like ice cream?
         # ════════════════════════════════════════════════════
         elif stage == 'await_icecream_question':
-            result = judge(
-                'asking Luca whether he likes ice cream (e.g. "Do you like ice cream?")',
-                user_message,
-                "Try asking: Do you like ice cream?"
-            )
-            if result.get('outcome') == 'matched':
+            if judge_icecream(t):
                 reply      = "No, I don't. I don't like ice cream. How about you? Do you like ice cream?"
                 next_stage = 'await_icecream_answer'
                 popup      = "네 또는 아니오로 답해보세요."
             else:
-                reply      = strip_emoji(result.get('reply') or "Try asking: Do you like ice cream?")
+                reply      = "Hmm, try asking me: Do you like ice cream?"
                 next_stage = 'await_icecream_question'
                 popup      = "아이스크림을 좋아하는지 영어로 물어보세요."
 
