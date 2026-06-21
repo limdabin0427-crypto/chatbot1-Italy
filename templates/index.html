@@ -18,7 +18,6 @@
             box-shadow: 0 0 30px rgba(0,0,0,0.5);
         }
 
-        /* 🎬 생동감 넘치는 4개의 GIF 크로스페이드 배경 슬라이드쇼 (블러 제거) */
         .bg-slideshow {
             position: absolute; top: 0; left: 0;
             width: 100%; height: 100%;
@@ -26,7 +25,7 @@
         }
         .bg-slideshow::after {
             content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 15, 20, 0.35); /* 가독성을 확보하면서도 쨍함을 유지하는 투명도 조절 */
+            background: rgba(15, 15, 20, 0.35);
             z-index: 2;
         }
         .bg-slide {
@@ -50,14 +49,12 @@
             100% { opacity: 0; }
         }
 
-        /* 🤖 캐릭터 및 콘텐츠 전면 레이어 */
         #character-area {
             position: relative; width: 100%; height: 35vh; min-height: 220px;
             display: flex; justify-content: center; align-items: flex-end; z-index: 3;
             perspective: 1000px; padding-top: 20px;
         }
 
-        /* 깨지는 국기 이모지 대신 들어갈 GIF 국기 스타일 */
         #italy-flag-img {
             position: absolute; top: 15px; left: 15px;
             width: 50px; height: auto;
@@ -170,11 +167,8 @@
     const micBtn = document.getElementById('mic-btn');
 
     let voices = [];
-    let step = 0; 
-    let studentName = ""; 
-    
-    // 🔒 학생 로그인 정보 기억용 방 (새로 추가됨)
     let studentInfo = ""; 
+
     window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('login-submit-btn').onclick = () => {
             const nameInput = document.getElementById('student-name-input').value.trim();
@@ -183,7 +177,7 @@
                 return;
             }
             studentInfo = nameInput;
-            document.getElementById('login-overlay').style.display = 'none'; // 로그인창 닫기
+            document.getElementById('login-overlay').style.display = 'none';
         };
     });
 
@@ -199,22 +193,16 @@
         window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 
         setTimeout(() => {
-            step = 0;
-            const greeting = "Ciao! Hello!";
-            addChatMessage('luca', greeting);
-            speak(greeting, () => { 
-                hint.innerText = "🎙️ 루카에게 인사를 건네며 대화를 시작해보세요!"; 
-            });
+            // 최초 인사말을 서버로부터 가져오기 위해 공백 전송
+            handleConversation("Hello");
         }, 300);
     }
 
     function addChatMessage(sender, text) {
         let formattedText = text.trim();
-        
         if (sender === 'user' && formattedText.length > 0) {
             formattedText = formattedText.charAt(0).toUpperCase() + formattedText.slice(1);
         }
-
         const msgBubble = document.createElement('div');
         msgBubble.classList.add('msg', sender);
         msgBubble.innerText = formattedText;
@@ -222,11 +210,16 @@
         chatHistory.scrollTop = chatHistory.scrollHeight;
     }
 
+    // 💡 개조 완료: 이모티콘 기호를 싹 도려내고 텍스트만 읽는 함수
     function speak(text, callback) {
         window.speechSynthesis.cancel();
         liveBubble.innerText = text;
         
-        const utterance = new SpeechSynthesisUtterance(text);
+        // 정규식을 사용해 문장 내 모든 이모티콘 및 특수 기호를 공백으로 지웁니다.
+        const emojiPattern = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F1E6}-\u{1F1FF}]/gu;
+        let cleanText = text.replace(emojiPattern, '').trim();
+        
+        const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = 'en-US';
         utterance.rate = 0.8; 
         utterance.pitch = 1.45; 
@@ -244,30 +237,27 @@
         window.speechSynthesis.speak(utterance);
     }
 
-    // 🔗 파이썬 백엔드 서버 및 구글 스프레드시트 연동용 핵심 대화 함수 (교체 완료)
+    // 🔗 파이썬 백엔드 API와 실시간 대화 및 로그 적재 처리
     async function handleConversation(userInput) {
         try {
-            // 배포된 파이썬 백엔드로 [학생 이름]과 [학생이 한 말]을 보냅니다.
             const response = await fetch('/api/chat', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     student: studentInfo, 
                     message: userInput 
                 })
             });
 
-            // 구글 시트에 기록을 마친 백엔드가 돌려준 답변 데이터 수신
             const data = await response.json();
             
-            // 루카가 화면에 답변을 띄우고 영어 말하기 시작
             addChatMessage('luca', data.reply); 
-            speak(data.reply); 
+            speak(data.reply, () => {
+                hint.innerText = "🎙️ 버튼을 누르고 루카에게 대답해보세요!";
+            }); 
 
         } catch (error) {
-            console.error("백엔드 연결 실패 😭:", error);
+            console.error("백엔드 연결 실패:", error);
             addChatMessage('luca', "Sorry, I missed that. Can you say it again?");
             speak("Sorry, I missed that.");
         }
