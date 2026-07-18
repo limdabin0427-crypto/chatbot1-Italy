@@ -111,18 +111,25 @@ def strip_emoji(text):
     return EMOJI_PATTERN.sub('', text or '').strip()
 
 def call_gemini(prompt, max_tokens=80):
-    """Gemini로 자유 응답 1~2문장 생성."""
+    """Gemini로 자유 응답 1~2문장 생성. 반드시 완전한 문장만 반환."""
     if not GEMINI_KEY:
         return ""
     try:
         model  = make_model(BASE_PERSONA)
+        # ⚠️ stop_sequences 절대 사용 금지 — 문장 중간에 잘림 유발
         config = genai.types.GenerationConfig(
             max_output_tokens=max_tokens,
             temperature=0.7,
         )
-        response = model.generate_content(prompt, generation_config=config)
+        # 완전한 문장 강제 지시를 프롬프트에 직접 포함
+        full_prompt = (
+            prompt +
+            " IMPORTANT: Write a complete sentence. "
+            "Do NOT stop in the middle of a sentence."
+        )
+        response = model.generate_content(full_prompt, generation_config=config)
         raw = strip_emoji(response.text.strip())
-        # 문장이 잘리면 마침표 추가
+        # 문장 끝 부호 없으면 마침표 추가
         if raw and raw[-1] not in ".!?":
             raw += "."
         return raw
@@ -196,9 +203,10 @@ def chat():
             else:
                 feeling_reply = call_gemini(
                     f'The student answered "How are you?" with: "{user_message}". '
-                    f'React warmly in ONE short sentence using their feeling word. '
-                    f'Do NOT ask another question.'
-                ) or "Oh, great!"
+                    f'React warmly in ONE complete English sentence using their feeling word. '
+                    f'Example: "Oh, that is great!" or "Oh, I am glad you are happy!" '
+                    f'Do NOT ask another question. Do NOT use Korean words.'
+                ) or "Oh, that is great!"
             reply      = f"{feeling_reply} I am from {CHARACTER_COUNTRY}. Where are you from?"
             next_stage = 'await_country'
             popup      = "'한국'을 영어로 말해보세요."
@@ -271,14 +279,17 @@ def chat():
         # STAGE 7 : 음식2 답변 — Yes / No
         # ════════════════════════════════════════════════════
         elif stage == 'await_food2_answer':
+            # ⚠️ ASK_FOOD_2_KO(한글)를 영어 문장에 직접 쓰면 TTS 오작동
+            #    → 영어 이름은 ASK_FOOD_2(영어 키워드)로 표현하거나 하드코딩
             if has_yes(t):
-                reaction = f"Oh, you like {ASK_FOOD_2_KO}!"
+                reaction = f"Oh, you like {ASK_FOOD_2} too!"
             elif has_no(t):
-                reaction = f"Oh, you don't like {ASK_FOOD_2_KO} either!"
+                reaction = f"Oh, you don't like {ASK_FOOD_2} either!"
             else:
                 reaction = call_gemini(
-                    f'Student replied to a yes/no question about {ASK_FOOD_2_KO} with: "{user_message}". '
-                    f'React warmly in ONE short sentence.'
+                    f'Student replied yes or no about liking {ASK_FOOD_2}. '
+                    f'Student said: "{user_message}". '
+                    f'React warmly in ONE complete English sentence only.'
                 ) or "I see!"
             reply      = f"{reaction} Do you have any questions?"
             next_stage = 'free_talk'
