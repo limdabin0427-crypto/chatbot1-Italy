@@ -33,9 +33,10 @@ ASK_FOOD_1_KO     = "피자"                       # 팝업에 표시할 한국�
 LUCA_ANSWER_1     = "Yes, I do. I like pizza!"   # 루카의 대답
 
 # 핵심 질문 2: 학생이 루카에게 물어봐야 하는 것
-ASK_FOOD_2        = "ice"                        # 학생이 물어볼 음식 키워드 ('ice cream'의 일부)
+ASK_FOOD_2        = "ice"                        # 학생이 물어볼 음식 키워드 (감지용)
 ASK_FOOD_2_ALT    = "cream"                      # 보조 키워드
-ASK_FOOD_2_KO     = "아이스크림"                  # 팝업에 표시할 한국어
+ASK_FOOD_2_EN     = "ice cream"                  # ← 영어 문장에 쓸 전체 이름 (TTS용)
+ASK_FOOD_2_KO     = "아이스크림"                  # 팝업에 표시할 한국어 (화면 전용)
 LUCA_ANSWER_2     = "No, I don't. I don't like ice cream. How about you? Do you like ice cream?"
 
 # 구글 시트 ID (나라별로 다른 시트 사용 가능)
@@ -110,26 +111,28 @@ EMOJI_PATTERN = re.compile(
 def strip_emoji(text):
     return EMOJI_PATTERN.sub('', text or '').strip()
 
-def call_gemini(prompt, max_tokens=80):
-    """Gemini로 자유 응답 1~2문장 생성. 반드시 완전한 문장만 반환."""
+def call_gemini(prompt, max_tokens=200):
+    """Gemini로 자유 응답 생성. 반드시 완전한 문장 반환.
+    ⚠️ max_tokens를 충분히 크게 유지할 것 (80 이하면 문장 중간 잘림 발생)
+    ⚠️ stop_sequences 절대 사용 금지 — 마침표/느낌표에서 문장 중간 잘림 유발
+    """
     if not GEMINI_KEY:
         return ""
     try:
         model  = make_model(BASE_PERSONA)
-        # ⚠️ stop_sequences 절대 사용 금지 — 문장 중간에 잘림 유발
         config = genai.types.GenerationConfig(
-            max_output_tokens=max_tokens,
+            max_output_tokens=max_tokens,   # 200으로 충분히 확보
             temperature=0.7,
+            # stop_sequences 절대 사용 안 함
         )
-        # 완전한 문장 강제 지시를 프롬프트에 직접 포함
         full_prompt = (
-            prompt +
-            " IMPORTANT: Write a complete sentence. "
-            "Do NOT stop in the middle of a sentence."
+            prompt
+            + " Reply in 1-2 COMPLETE sentences only."
+            + " Every sentence must be fully finished."
+            + " Do NOT use any Korean words."
         )
         response = model.generate_content(full_prompt, generation_config=config)
         raw = strip_emoji(response.text.strip())
-        # 문장 끝 부호 없으면 마침표 추가
         if raw and raw[-1] not in ".!?":
             raw += "."
         return raw
@@ -138,7 +141,8 @@ def call_gemini(prompt, max_tokens=80):
         return ""
 
 def has_yes(t):
-    return any(w in t for w in ['yes', 'i do', 'yep', 'yeah', 'sure', 'of course', 'good', 'great'])
+    # ⚠️ 'good','great' 제거 — 다른 문장에서 오판정 유발
+    return any(w in t for w in ['yes', 'i do', 'yep', 'yeah', 'sure', 'of course'])
 
 def has_no(t):
     return any(w in t for w in ['no', "don't", 'dont', 'nope', 'not really', 'nah'])
@@ -279,17 +283,17 @@ def chat():
         # STAGE 7 : 음식2 답변 — Yes / No
         # ════════════════════════════════════════════════════
         elif stage == 'await_food2_answer':
-            # ⚠️ ASK_FOOD_2_KO(한글)를 영어 문장에 직접 쓰면 TTS 오작동
-            #    → 영어 이름은 ASK_FOOD_2(영어 키워드)로 표현하거나 하드코딩
+            # ✅ ASK_FOOD_2_EN(영어 전체 이름)을 사용 — TTS 정상 출력
+            # ✅ has_yes/has_no로 먼저 판정 → Gemini 호출 최소화
             if has_yes(t):
-                reaction = f"Oh, you like {ASK_FOOD_2} too!"
+                reaction = f"Oh, you like {ASK_FOOD_2_EN} too!"
             elif has_no(t):
-                reaction = f"Oh, you don't like {ASK_FOOD_2} either!"
+                reaction = f"Oh, you don't like {ASK_FOOD_2_EN} either!"
             else:
                 reaction = call_gemini(
-                    f'Student replied yes or no about liking {ASK_FOOD_2}. '
-                    f'Student said: "{user_message}". '
-                    f'React warmly in ONE complete English sentence only.'
+                    f'The student was asked "Do you like {ASK_FOOD_2_EN}?" '
+                    f'and replied: "{user_message}". '
+                    f'React warmly in ONE complete English sentence.'
                 ) or "I see!"
             reply      = f"{reaction} Do you have any questions?"
             next_stage = 'free_talk'
