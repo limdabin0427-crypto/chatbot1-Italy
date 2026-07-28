@@ -85,7 +85,6 @@
             opacity: 0;
             animation: slideFade 24s infinite ease-in-out;
         }
-        /* JS로 동적 생성 — 클래스명 bg-slide-0, bg-slide-1... */
         @keyframes slideFade {
             0%{opacity:0} 4%{opacity:1} 25%{opacity:1} 29%{opacity:0} 100%{opacity:0}
         }
@@ -94,7 +93,6 @@
            상단 고정: 캐릭터 + 말풍선
         ══════════════════════════════════ */
         #top-fixed {
-            /* 화면 상단 고정 */
             position: sticky;
             top: 0;
             flex: 0 0 auto;
@@ -104,7 +102,7 @@
             align-items: center;
             padding-top: 14px;
             padding-bottom: 0;
-            /* 배경 없음 — 배경 슬라이드쇼가 비침 */
+            background: transparent;
         }
 
         /* 국기 */
@@ -117,10 +115,10 @@
             z-index: 12;
         }
 
-        /* 말풍선 — 캐릭터 위, z-index 낮게 */
+        /* 말풍선 */
         #live-bubble {
             position: relative;
-            z-index: 11;                 /* 캐릭터(12)보다 낮음 → 캐릭터가 앞으로 */
+            z-index: 11;
             background: rgba(255,255,255,0.96);
             backdrop-filter: blur(10px);
             padding: 10px 18px;
@@ -133,10 +131,9 @@
             color: #1a1a2e;
             word-break: keep-all;
             line-height: 1.45;
-            margin-bottom: 6px;         /* 말풍선↔캐릭터 간격 */
+            margin-bottom: 6px;
             display: none;
         }
-        /* 꼬리 */
         #live-bubble::after {
             content: '';
             position: absolute;
@@ -146,10 +143,10 @@
             border-top-color: rgba(255,255,255,0.96);
         }
 
-        /* 캐릭터 GIF — 검정 배경 제거 */
+        /* 💡 캐릭터 GIF — 검정 배경 투명 제거 필터 강화 */
         #character-gif {
             position: relative;
-            z-index: 12;                /* 말풍선보다 앞 */
+            z-index: 12;
             width: 38vw;
             height: auto;
             max-width: 220px;
@@ -157,24 +154,21 @@
             object-fit: contain;
             display: block;
             margin-bottom: -18px;
-            /* ✅ mix-blend-mode: screen → GIF의 검정(#000) 배경을 투명하게 처리 */
+            
+            /* GIF 검정배경 투명화 및 잔상 필터 보완 */
             mix-blend-mode: screen;
-            /* drop-shadow는 mix-blend-mode와 함께 쓰면 효과가 중복되므로 제거 */
-        }
-        /* 캐릭터를 감싸는 wrapper에 배경을 약간 어둡게 해서 screen 효과 강화 */
-        #top-fixed {
-            background: transparent;
+            filter: brightness(1.05) contrast(1.1);
+            isolation: isolate;
         }
 
         /* ══════════════════════════════════
-           채팅 히스토리 (스크롤 영역)
+           채팅 히스토리
         ══════════════════════════════════ */
         #chat-history {
             flex: 1 1 0;
             min-height: 0;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            /* 하단 고정 패널 높이만큼 padding-bottom 확보 → 말풍선 가림 방지 */
             padding: 20px 16px 140px;
             display: flex;
             flex-direction: column;
@@ -202,8 +196,7 @@
         .msg.user { align-self: flex-end; background: #00b09b; color: #fff; border-top-right-radius: 2px; }
 
         /* ══════════════════════════════════
-           하단 고정 패널 (Fixed Bottom Sheet)
-           힌트창 + 마이크 버튼 완전 분리
+           하단 고정 패널
         ══════════════════════════════════ */
         #bottom-sheet {
             position: fixed;
@@ -221,7 +214,6 @@
             gap: 8px;
         }
 
-        /* 노란 힌트 박스 — 하단 패널 내부 최상단 */
         #korean-popup {
             width: 100%;
             background: #FFE066;
@@ -234,7 +226,6 @@
             line-height: 1.45;
             box-shadow: 0 4px 12px rgba(0,0,0,0.20);
             white-space: pre-wrap;
-            /* 숨김/표시 트랜지션 */
             max-height: 0;
             overflow: hidden;
             opacity: 0;
@@ -248,7 +239,6 @@
             padding: 9px 16px;
         }
 
-        /* 힌트 텍스트 (🎙️ 안내) */
         #hint {
             color: #FFEB3B;
             font-size: clamp(12px, 3.2vw, 14px);
@@ -257,7 +247,6 @@
             line-height: 1.3;
         }
 
-        /* 마이크 버튼 */
         #mic-btn {
             width: clamp(58px, 14vw, 68px);
             height: clamp(58px, 14vw, 68px);
@@ -277,7 +266,6 @@
         }
         @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.08)} 100%{transform:scale(1)} }
 
-        /* 시작 버튼 */
         #start-btn {
             padding: 12px 44px;
             font-size: clamp(15px, 4vw, 18px); font-weight: 700;
@@ -288,7 +276,7 @@
         }
 
         /* ══════════════════════════════════
-           피날레
+           피날레 & 로그인
         ══════════════════════════════════ */
         #finale-overlay {
             display: none; position: fixed; inset: 0;
@@ -317,9 +305,6 @@
             100%{ transform:translate(var(--tx),var(--ty)) scale(0.1); opacity:0; }
         }
 
-        /* ══════════════════════════════════
-           로그인 오버레이
-        ══════════════════════════════════ */
         #login-overlay {
             position: fixed; inset: 0;
             background: rgba(0,0,0,0.88);
@@ -382,26 +367,22 @@
 
 <!-- ── 피날레 ── -->
 <div id="finale-overlay">
-    <div id="finale-msg" id="finale-msg-text"></div>
+    <div id="finale-msg"></div>
 </div>
 
 <!-- ── 메인 앱 ── -->
 <div id="app-container">
 
-    <!-- 배경 슬라이드쇼 (JS로 동적 생성) -->
     <div class="bg-slideshow" id="bg-slideshow"></div>
 
-    <!-- 상단 고정: 말풍선 + 캐릭터 -->
     <div id="top-fixed">
         <img id="flag-img" alt="flag">
         <div id="live-bubble"></div>
         <img id="character-gif" alt="character">
     </div>
 
-    <!-- 채팅 히스토리 -->
     <div id="chat-history"></div>
 
-    <!-- 하단 고정 패널 -->
     <div id="bottom-sheet">
         <div id="korean-popup"></div>
         <div id="hint">Let's chat!</div>
@@ -409,14 +390,10 @@
         <button id="mic-btn">🎙️</button>
     </div>
 
-</div><!-- #app-container -->
+</div>
 
 <script>
-// ================================================================
-//  초기화 — CONFIG 값으로 DOM 세팅
-// ================================================================
 (function initFromConfig() {
-    // 배경 슬라이드쇼 동적 생성
     const bss = document.getElementById('bg-slideshow');
     CONFIG.backgrounds.forEach((src, i) => {
         const d = document.createElement('div');
@@ -426,22 +403,12 @@
         bss.appendChild(d);
     });
 
-    // 국기
     document.getElementById('flag-img').src = CONFIG.flagImg;
-
-    // 캐릭터 초기 GIF
     document.getElementById('character-gif').src = CONFIG.gif.greeting;
-
-    // 피날레 메시지
     document.querySelector('#finale-msg').innerText = CONFIG.finaleMsg;
-
-    // 페이지 타이틀
     document.title = `${CONFIG.characterName} - ${CONFIG.country} Chatbot`;
 })();
 
-// ================================================================
-//  전역 변수
-// ================================================================
 const liveBubble    = document.getElementById('live-bubble');
 const koreanPopup   = document.getElementById('korean-popup');
 const chatHistory   = document.getElementById('chat-history');
@@ -457,49 +424,37 @@ let conversationHistory = [];
 let stage               = 'await_greeting';
 let popupTimer          = null;
 
-// ================================================================
-//  음성 (TTS) — 고화질 원어민 음성 + 어린이 톤 옵션
-// ================================================================
 function loadVoices() { voices = window.speechSynthesis.getVoices(); }
 loadVoices();
 if (window.speechSynthesis.onvoiceschanged !== undefined)
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
-/**
- * 최적 음성 선택
- * 우선순위: Google Natural > Google > 원어민 Neural/Premium > 원어민 기본
- */
 function pickVoice(gender) {
     const g = (gender || 'male').toLowerCase();
     const isMale = g === 'male';
 
-    // Google / Natural 계열 고음질 후보 먼저
     const highQualityNames = isMale
         ? ['google us english', 'google uk english male', 'microsoft guy', 'alex', 'fred', 'daniel', 'tom']
         : ['google us english', 'google uk english female', 'microsoft zira', 'samantha', 'karen', 'victoria', 'moira'];
 
-    // 1순위: 이름에 고음질 키워드 포함
     let v = voices.find(v =>
         v.lang.startsWith('en') &&
         highQualityNames.some(n => v.name.toLowerCase().includes(n))
     );
     if (v) return v;
 
-    // 2순위: Natural / Premium / Enhanced 계열
     v = voices.find(v =>
         v.lang.startsWith('en') &&
         /natural|premium|enhanced|neural/i.test(v.name)
     );
     if (v) return v;
 
-    // 3순위: 성별 키워드
     const genderKey = isMale ? 'male' : 'female';
     v = voices.find(v =>
         v.lang.startsWith('en') && v.name.toLowerCase().includes(genderKey)
     );
     if (v) return v;
 
-    // 4순위: 영어 아무 거나
     return voices.find(v => v.lang.startsWith('en')) || null;
 }
 
@@ -508,18 +463,17 @@ function speak(text, callback) {
     liveBubble.innerText = text;
     liveBubble.style.display = 'block';
 
-    // 이모지 제거 (TTS 오작동 방지)
     const clean = text
         .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1FFFF}]/gu, '')
         .replace(/\s{2,}/g, ' ').trim();
 
     const utt   = new SpeechSynthesisUtterance(clean);
     utt.lang    = 'en-US';
-    utt.rate    = CONFIG.tts.rate;          // 0.85
+    utt.rate    = CONFIG.tts.rate;
 
     if (CONFIG.tts.childMode) {
-        utt.pitch = 1.35;                   // 어린이 톤
-        utt.rate  = CONFIG.tts.rate * 0.95; // 살짝 더 느리게
+        utt.pitch = 1.35;
+        utt.rate  = CONFIG.tts.rate * 0.95;
     } else {
         utt.pitch = 1.0;
     }
@@ -532,10 +486,6 @@ function speak(text, callback) {
     window.speechSynthesis.speak(utt);
 }
 
-// ================================================================
-//  캐릭터 GIF 자동 전환
-//  AI 응답 텍스트 분석 → 상황에 맞는 GIF로 즉시 교체
-// ================================================================
 function updateCharacterGif(replyText) {
     const t = replyText.toLowerCase();
 
@@ -551,9 +501,6 @@ function updateCharacterGif(replyText) {
     }
 }
 
-// ================================================================
-//  로그인
-// ================================================================
 window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-submit-btn').onclick = () => {
         const val = document.getElementById('student-name-input').value.trim();
@@ -563,16 +510,12 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 });
 
-// ================================================================
-//  앱 시작
-// ================================================================
 function startApp() {
     startBtn.style.display = 'none';
     micBtn.style.display   = 'block';
     window.speechSynthesis.cancel();
     stage = 'await_greeting';
 
-    // 인사 GIF
     characterGif.src = CONFIG.gif.greeting;
 
     const opening = CONFIG.openingLine;
@@ -586,9 +529,6 @@ function startApp() {
     }, 300);
 }
 
-// ================================================================
-//  힌트 팝업 제어
-// ================================================================
 function showKoreanPopup(text) {
     clearTimeout(popupTimer);
     koreanPopup.innerText = '📢 ' + text;
@@ -603,9 +543,6 @@ function scheduleHidePopup(delay = 500) {
     popupTimer = setTimeout(hideKoreanPopup, delay);
 }
 
-// ================================================================
-//  채팅 메시지 추가
-// ================================================================
 function addChatMessage(sender, text) {
     let t = text.trim();
     if (sender === 'user' && t.length > 0)
@@ -614,15 +551,11 @@ function addChatMessage(sender, text) {
     el.classList.add('msg', sender);
     el.innerText = t;
     chatHistory.appendChild(el);
-    // 스크롤 최하단
     requestAnimationFrame(() => {
         chatHistory.scrollTop = chatHistory.scrollHeight;
     });
 }
 
-// ================================================================
-//  폭죽
-// ================================================================
 function launchFireworks() {
     const colors = ['#FF4136','#FF851B','#FFDC00','#2ECC40','#0074D9','#B10DC9','#FF69B4','#fff'];
     const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
@@ -663,11 +596,8 @@ function showFinale() {
     setTimeout(() => finaleOverlay.classList.add('show'), 600);
 }
 
-// ================================================================
-//  백엔드 API 호출
-// ================================================================
 async function handleConversation(userInput) {
-    scheduleHidePopup(400);   // 학생 발화 직후 팝업 페이드아웃 예약
+    scheduleHidePopup(400);
 
     conversationHistory.push({ role: 'user', content: userInput });
     try {
@@ -686,13 +616,9 @@ async function handleConversation(userInput) {
         conversationHistory.push({ role: 'assistant', content: data.reply });
         if (data.stage) stage = data.stage;
 
-        // 캐릭터 GIF 즉시 전환
         updateCharacterGif(data.reply);
-
         addChatMessage('luca', data.reply);
 
-        // ✅ 팝업은 TTS가 끝난 후 + 200ms 뒤에 표시 (너무 일찍 뜨는 문제 해결)
-        // speak 콜백 안에서만 팝업을 띄움
         const pendingPopup = data.popup || null;
 
         if (data.fireworks) {
@@ -705,7 +631,6 @@ async function handleConversation(userInput) {
         } else {
             speak(data.reply, () => {
                 hint.innerText = '🎙️ 버튼을 누르고 대답해보세요!';
-                // TTS 완전히 끝난 후 200ms 뒤 팝업 표시
                 if (pendingPopup) {
                     setTimeout(() => showKoreanPopup(pendingPopup), 200);
                 } else {
@@ -721,9 +646,6 @@ async function handleConversation(userInput) {
     }
 }
 
-// ================================================================
-//  음성 인식 (STT)
-// ================================================================
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (SR) {
     const recognition = new SR();
