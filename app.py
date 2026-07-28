@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import random
 import traceback
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session
@@ -17,31 +18,14 @@ CORS(app)
 # ✏️  나라별 챗봇 설정 — 이 블록만 바꾸면 다른 나라 챗봇 완성!
 # ═══════════════════════════════════════════════════════════════
 
-# 캐릭터 기본 정보
-CHARACTER_NAME    = "Luca"          # 챗봇 이름
-CHARACTER_COUNTRY = "Italy"         # 출신 나라 (영어)
-CHARACTER_AGE     = 10              # 나이
-CHARACTER_GENDER  = "boy"           # boy / girl
+CHARACTER_NAME    = "Luca"
+CHARACTER_COUNTRY = "Italy"
+CHARACTER_AGE     = 10
+CHARACTER_GENDER  = "boy"
 
-# 스몰톡 — 나라 확인 후 첫 핵심 질문
-FOOD_QUESTION_1   = "Do you like Kimbap?"        # 루카가 먼저 묻는 한국 음식
-FOOD_KEYWORD_1    = ["kimbap", "kim bap"]        # 위 질문의 키워드 (판정용, 필요 시)
-
-# 핵심 질문 1: 학생이 루카에게 물어봐야 하는 것
-ASK_FOOD_1        = "pizza"                      # 학생이 물어볼 음식 키워드
-ASK_FOOD_1_KO     = "피자"                       # 팝업에 표시할 한국어
-LUCA_ANSWER_1     = "Yes, I do. I like pizza!"   # 루카의 대답
-
-# 핵심 질문 2: 학생이 루카에게 물어봐야 하는 것
-ASK_FOOD_2        = "ice"                        # 학생이 물어볼 음식 키워드 (감지용)
-ASK_FOOD_2_ALT    = "cream"                      # 보조 키워드
-ASK_FOOD_2_EN     = "ice cream"                  # ← 영어 문장에 쓸 전체 이름 (TTS용)
-ASK_FOOD_2_KO     = "아이스크림"                  # 팝업에 표시할 한국어 (화면 전용)
-LUCA_ANSWER_2     = "No, I don't. I don't like ice cream. How about you? Do you like ice cream?"
-
-# 구글 시트 ID (나라별로 다른 시트 사용 가능)
-SPREADSHEET_ID    = "1GrSDc23pBeeLZnEh3oeQwjEcOIAxH-cZPDBYPr8c3oY"
-SHEET_TAB         = "Sheet1"   # 시트 탭 이름 (기본값 Sheet1)
+# 구글 시트 설정
+SPREADSHEET_ID = "1GrSDc23pBeeLZnEh3oeQwjEcOIAxH-cZPDBYPr8c3oY"
+SHEET_TAB      = "Sheet1"
 
 # ═══════════════════════════════════════════════════════════════
 # 여기서부터는 공통 코드 — 수정 불필요
@@ -84,24 +68,86 @@ except Exception as e:
     sheet = None
 
 # ─────────────────────────────────────────────────────────────
-# 🌍 캐릭터 페르소나 (설정 블록 값으로 자동 생성)
+# 🌍 시스템 프롬프트 (전체 대화 규칙을 Gemini에게 전달)
 # ─────────────────────────────────────────────────────────────
-BASE_PERSONA = f"""
-You are {CHARACTER_NAME}, a cheerful {CHARACTER_AGE}-year-old {CHARACTER_GENDER} from {CHARACTER_COUNTRY}.
-You are talking with a Korean 3rd-grade student who is a complete English beginner (CEFR A1).
+SYSTEM_PROMPT = f"""
+You are {CHARACTER_NAME}, a {CHARACTER_AGE}-year-old {CHARACTER_GENDER} from {CHARACTER_COUNTRY}.
+You are an EFL learning chatbot for Korean 3rd-grade elementary students (complete beginners, CEFR A1).
 
-STRICT RULES — never break these:
-1. Reply in 1-2 short, complete sentences ONLY. Never leave a sentence unfinished.
-2. Use only the simplest English words: colors, animals, food, feelings, numbers, school items.
-3. NO emojis, NO emoticons, NO special symbols. Plain text only (TTS reads this aloud).
-4. Be warm, encouraging, and patient. Even a one-word answer from the student is fine.
-5. If the student says only one word, accept it and continue naturally.
-6. If the student says "I don't know", give a gentle hint or move on with a simple answer.
-7. Always finish your sentence completely. Never cut off mid-sentence.
+=== LANGUAGE RULES ===
+- Always reply ONLY in English. Never use Korean in your reply.
+- If the student writes in Korean or mixed Korean-English, understand their meaning but reply only in English.
+- Use only very simple words: feelings, food names, colors, animals, numbers.
+- Keep replies to 1-2 short, complete sentences. Never leave a sentence unfinished.
+- NO emojis. NO special symbols. Plain text only (TTS reads this aloud).
+
+=== CONVERSATION FLOW ===
+Follow this flow in order. Do not skip steps.
+
+[STEP 1 - GREETING]
+Your opening line is fixed: "Hi, my name is {CHARACTER_NAME}. Nice to meet you."
+Wait for the student to greet you back (Hi, Hello, etc.).
+When they greet you, respond: "Hi!" or "Hello!" then ask "How are you?"
+
+[STEP 2 - FEELING]
+Wait for the student to express their feeling.
+- Positive feelings (fine, happy, good, awesome, perfect, excited, okay, best, wonderful, super, great):
+  → Reply: "That's great. I'm good too."
+- Negative feelings (bad, sad, tired, sick, bored, angry, sleepy, hungry, so-so, terrible, not good):
+  → Reply: "Oh, that's too bad. I hope you feel better."
+- If unclear or just one word, still accept and respond warmly.
+
+[STEP 3 - FREE QUESTION INVITATION]
+After responding to their feeling, say: "Now, ask me anything!"
+This invites the student to ask you questions freely.
+
+[STEP 4 - FOOD PREFERENCE QUESTIONS]
+When the student asks "Do you like (food)?":
+
+  Rule A — First food question:
+    Randomly choose YES or NO. Remember your choice as first_answer.
+    - If YES: "Yes, I do. I like (food name)."
+    - If NO: "No, I don't. I don't like (food name)."
+
+  Rule B — Second food question:
+    Do the OPPOSITE of first_answer.
+    - If first was YES → say NO: "No, I don't. I don't like (food name)."
+    - If first was NO → say YES: "Yes, I do. I like (food name)."
+    After answering, ask back: "How about you? Do you like (second food name)?"
+
+  Rule C — Student's response to your question back:
+    - If student says YES (yes, i do, yeah, yep, sure):
+      Check if this matches your second answer.
+      - If your second answer was YES → "Oh, we are the same! I like it too! Great!"
+      - If your second answer was NO → "Oh, that's okay. We can be different."
+    - If student says NO (no, i don't, nope, nah):
+      Check if this matches your second answer.
+      - If your second answer was NO → "Oh, we are the same! I don't like it either! Great!"
+      - If your second answer was YES → "Oh, that's okay. We can be different."
+
+  Rule D — Any other food question:
+    Randomly answer "Yes, I do." or "No, I don't."
+
+[STEP 5 - MORE QUESTIONS]
+After the food exchange is done, ask: "Do you have any other questions?"
+- If student asks a non-food question: give a simple, appropriate A1-level answer.
+- If student says no (no, no thank you, i don't have, 없어요, 없어, 괜찮아요):
+  Reply: "It was nice to meet you. See you next time! Bye."
+  Then the conversation ends.
+
+=== HINT SYSTEM ===
+The frontend shows Korean hint boxes separately. You do NOT need to give Korean hints.
+Just reply naturally in English following the flow above.
+
+=== IMPORTANT ===
+- Accept one-word answers (e.g., "happy", "yes", "pizza") as valid.
+- If the student says "I don't know" or similar, gently move to the next step.
+- Never ask two questions at once.
+- Always complete every sentence fully before ending your reply.
 """
 
 # ─────────────────────────────────────────────────────────────
-# 🛠️  공통 유틸리티
+# 🛠️  유틸리티
 # ─────────────────────────────────────────────────────────────
 EMOJI_PATTERN = re.compile(
     "[" "\U0001F1E6-\U0001F1FF" "\U0001F300-\U0001FAFF"
@@ -111,45 +157,125 @@ EMOJI_PATTERN = re.compile(
 def strip_emoji(text):
     return EMOJI_PATTERN.sub('', text or '').strip()
 
-def call_gemini(prompt, max_tokens=200):
-    """Gemini로 자유 응답 생성. 반드시 완전한 문장 반환.
-    ⚠️ max_tokens를 충분히 크게 유지할 것 (80 이하면 문장 중간 잘림 발생)
-    ⚠️ stop_sequences 절대 사용 금지 — 마침표/느낌표에서 문장 중간 잘림 유발
+def call_gemini(history_messages, max_tokens=200):
+    """
+    전체 대화 히스토리를 넘겨서 Gemini가 흐름을 파악하고 응답.
+    ⚠️ stop_sequences 사용 금지 (문장 중간 잘림 유발)
+    ⚠️ max_tokens 200 이상 유지 (80 이하면 잘림 발생)
     """
     if not GEMINI_KEY:
         return ""
     try:
-        model  = make_model(BASE_PERSONA)
+        model  = make_model(SYSTEM_PROMPT)
         config = genai.types.GenerationConfig(
-            max_output_tokens=max_tokens,   # 200으로 충분히 확보
-            temperature=0.7,
-            # stop_sequences 절대 사용 안 함
+            max_output_tokens=max_tokens,
+            temperature=0.8,
         )
-        full_prompt = (
-            prompt
-            + " Reply in 1-2 COMPLETE sentences only."
-            + " Every sentence must be fully finished."
-            + " Do NOT use any Korean words."
+        # Gemini용 메시지 포맷으로 변환
+        gemini_messages = []
+        for msg in history_messages:
+            role    = "user" if msg["role"] == "user" else "model"
+            gemini_messages.append({"role": role, "parts": [msg["content"]]})
+
+        chat = model.start_chat(history=gemini_messages[:-1])
+        response = chat.send_message(
+            gemini_messages[-1]["parts"][0],
+            generation_config=config
         )
-        response = model.generate_content(full_prompt, generation_config=config)
         raw = strip_emoji(response.text.strip())
+        # 문장이 잘렸으면 마침표 추가
         if raw and raw[-1] not in ".!?":
             raw += "."
         return raw
     except Exception as e:
         print(f"Gemini 에러: {e}")
+        traceback.print_exc()
         return ""
 
-def has_yes(t):
-    # ⚠️ 'good','great' 제거 — 다른 문장에서 오판정 유발
-    return any(w in t for w in ['yes', 'i do', 'yep', 'yeah', 'sure', 'of course'])
+def detect_stage(user_message, current_stage, session_data):
+    """
+    학생 발화 + 현재 단계를 보고 다음 단계와 팝업을 결정.
+    팝업(한국어 힌트)은 여기서만 관리. Gemini 응답과 분리.
+    """
+    t = user_message.lower().strip()
 
-def has_no(t):
-    return any(w in t for w in ['no', "don't", 'dont', 'nope', 'not really', 'nah'])
+    # 종료 감지 (어느 단계에서든)
+    end_phrases = ['no thank', 'no thanks', 'no, thank', 'bye', 'goodbye',
+                   '없어요', '없어', '괜찮아요', '없음']
+    is_end = any(p in t for p in end_phrases) or re.fullmatch(r'no[.!]?', t)
 
-def judge_keyword(t, *keywords):
-    """키워드 중 하나라도 포함되면 True."""
-    return any(kw in t for kw in keywords)
+    if current_stage == 'await_greeting':
+        greet_words = ['hi', 'hello', 'hey', 'nice to meet', 'good morning', 'good afternoon',
+                       '안녕', '헬로', '하이']
+        if any(w in t for w in greet_words):
+            return 'await_feeling', "지금 기분을 영어로 말해보세요.\n(예: I'm good. / I'm happy.)"
+        else:
+            return 'await_greeting', f"{CHARACTER_NAME}에게 영어로 인사를 해보세요!\n(예: Hi! / Hello!)"
+
+    elif current_stage == 'await_feeling':
+        # 기분 표현이 있으면 다음으로
+        feeling_words = ['fine', 'happy', 'good', 'awesome', 'perfect', 'excited', 'okay',
+                         'best', 'wonderful', 'super', 'great', 'bad', 'sad', 'tired',
+                         'sick', 'bored', 'angry', 'sleepy', 'hungry', 'terrible',
+                         'so-so', 'not good', 'well', 'ok', '좋아', '행복', '피곤']
+        if any(w in t for w in feeling_words) or len(t) >= 2:
+            return 'free_question', "루카에게 궁금한 것을 물어보세요!\n(예: Do you like pizza?)"
+        else:
+            return 'await_feeling', "지금 기분을 영어로 말해보세요.\n(예: I'm good. / I'm happy.)"
+
+    elif current_stage == 'free_question':
+        if is_end:
+            return 'done', None
+        # 음식 질문 감지
+        if 'do you like' in t or ('like' in t and ('food' in t or _has_food_word(t))):
+            food = _extract_food(t)
+            if food:
+                if 'first_food' not in session_data:
+                    session_data['first_food'] = food
+                    session_data['first_answer'] = random.choice(['yes', 'no'])
+                elif 'second_food' not in session_data:
+                    session_data['second_food'] = food
+                    # 두 번째는 첫 번째의 반대
+                    session_data['second_answer'] = 'no' if session_data['first_answer'] == 'yes' else 'yes'
+                    return 'await_student_food_answer', "네 또는 아니오로 답해보세요.\n(Yes, I do. / No, I don't.)"
+            return 'free_question', "루카에게 더 궁금한 것이 있나요?\n(예: Do you like ice cream?)"
+        return 'free_question', "루카에게 더 궁금한 것이 있나요?\n(예: 다른 것도 물어보세요!)"
+
+    elif current_stage == 'await_student_food_answer':
+        if is_end:
+            return 'done', None
+        return 'free_question', "루카에게 더 궁금한 것이 있나요?\n질문이 없다면 No, thank you. 라고 말해주세요."
+
+    elif current_stage == 'free_question_2':
+        if is_end:
+            return 'done', None
+        return 'free_question_2', "루카에게 더 궁금한 것이 있나요?\n질문이 없다면 No, thank you. 라고 말해주세요."
+
+    else:
+        return 'done', None
+
+
+def _has_food_word(t):
+    """음식 관련 단어가 포함돼 있는지 확인."""
+    food_words = ['pizza', 'ice cream', 'icecream', 'spaghetti', 'pasta', 'burger',
+                  'hamburger', 'sushi', 'ramen', 'taco', 'sandwich', 'apple', 'banana',
+                  'cake', 'cookie', 'chocolate', 'kimchi', 'rice', 'noodle', 'bread',
+                  'cheese', 'milk', 'juice', 'chicken', 'fish', 'egg', 'soup', 'salad',
+                  '피자', '아이스크림', '스파게티', '햄버거', '초콜릿']
+    return any(f in t for f in food_words)
+
+def _extract_food(t):
+    """학생 발화에서 음식 이름 추출."""
+    food_list = [
+        'pizza', 'ice cream', 'spaghetti', 'pasta', 'burger', 'hamburger',
+        'sushi', 'ramen', 'taco', 'sandwich', 'apple', 'banana', 'cake',
+        'cookie', 'chocolate', 'kimchi', 'rice', 'noodle', 'bread',
+        'cheese', 'milk', 'juice', 'chicken', 'fish', 'egg', 'soup', 'salad'
+    ]
+    for food in food_list:
+        if food in t:
+            return food
+    return None
 
 # ─────────────────────────────────────────────────────────────
 # 🌐 라우트
@@ -163,174 +289,61 @@ def chat():
     data         = request.get_json(force=True, silent=True) or {}
     student_info = data.get('student', 'Unknown')
     user_message = (data.get('message') or '').strip()
-    stage        = (data.get('stage')   or 'await_greeting').strip()
+    stage        = (data.get('stage') or 'await_greeting').strip()
 
-    # 대화 히스토리 (세션 유지)
+    # 세션 초기화
     if 'chat_history' not in session:
         session['chat_history'] = []
-    history = session['chat_history']
-    history.append({"role": "user", "content": user_message})
+    if 'food_data' not in session:
+        session['food_data'] = {}   # first_food, first_answer, second_food, second_answer
 
-    reply      = ""
-    popup      = None
-    next_stage = stage
-    fireworks  = False
+    history   = session['chat_history']
+    food_data = session['food_data']
+
+    fireworks = False
+    popup     = None
 
     if not GEMINI_KEY:
         reply = "Sorry, I cannot talk right now. Please ask your teacher."
-        return _respond(reply, popup, next_stage, fireworks, student_info, user_message, history)
+        return _respond(reply, popup, stage, fireworks, student_info, user_message, history)
 
     try:
-        t = user_message.lower()
+        # ── 단계 판정 및 팝업 결정 ─────────────────────────
+        next_stage, popup = detect_stage(user_message, stage, food_data)
+        session['food_data'] = food_data  # 업데이트된 food_data 저장
 
-        # ════════════════════════════════════════════════════
-        # STAGE 1 : 인사 — 학생: Hi / Hello
-        # ════════════════════════════════════════════════════
-        if stage == 'await_greeting':
-            greet_words = ['hi', 'hello', 'hey', 'nice to meet', 'good morning', 'good afternoon']
-            if any(w in t for w in greet_words):
-                reply      = f"Oh, hi! Nice to meet you. How are you?"
-                next_stage = 'await_feeling'
-                popup      = "오늘의 기분을 영어로 표현해보세요."
-            else:
-                reply      = f"Hi! Can you say hello to me?"
-                next_stage = 'await_greeting'
-                popup      = f"{CHARACTER_NAME}에게 인사를 영어로 해주세요."
+        # ── 종료 처리 ──────────────────────────────────────
+        if next_stage == 'done':
+            fireworks = True
+            popup     = None
 
-        # ════════════════════════════════════════════════════
-        # STAGE 2 : 기분 — 학생: I'm happy / Good 등
-        # ════════════════════════════════════════════════════
-        elif stage == 'await_feeling':
-            # 모르면 바로 넘어가기
-            if judge_keyword(t, "don't know", "idk", "모르", "몰라"):
-                feeling_reply = "Okay!"
-            else:
-                feeling_reply = call_gemini(
-                    f'The student answered "How are you?" with: "{user_message}". '
-                    f'React warmly in ONE complete English sentence using their feeling word. '
-                    f'Example: "Oh, that is great!" or "Oh, I am glad you are happy!" '
-                    f'Do NOT ask another question. Do NOT use Korean words.'
-                ) or "Oh, that is great!"
-            reply      = f"{feeling_reply} I am from {CHARACTER_COUNTRY}. Where are you from?"
-            next_stage = 'await_country'
-            popup      = "'한국'을 영어로 말해보세요."
+        # ── Gemini 호출 (히스토리 전체 전달) ───────────────
+        # 세션 힌트: food_data를 시스템 컨텍스트로 추가
+        food_context = ""
+        if food_data.get('first_food'):
+            food_context = (
+                f"\n[CONTEXT FOR THIS TURN]\n"
+                f"first_food={food_data.get('first_food')}, "
+                f"first_answer={food_data.get('first_answer')}, "
+                f"second_food={food_data.get('second_food','not yet')}, "
+                f"second_answer={food_data.get('second_answer','not yet')}\n"
+                f"Use this context to give the correct answer and reaction.\n"
+            )
 
-        # ════════════════════════════════════════════════════
-        # STAGE 3 : 나라 — 학생: Korea
-        # ════════════════════════════════════════════════════
-        elif stage == 'await_country':
-            if judge_keyword(t, 'korea', 'korean', 'south korea'):
-                reply      = f"Oh! You are Korean. {FOOD_QUESTION_1}"
-                next_stage = 'await_food1_answer'
-                popup      = "네 또는 아니오로 답해보세요."
-            elif judge_keyword(t, "don't know", "idk", "모르", "몰라"):
-                # 모르면 힌트 주고 바로 넘어가기
-                reply      = f"That's okay! I am from {CHARACTER_COUNTRY}. {FOOD_QUESTION_1}"
-                next_stage = 'await_food1_answer'
-                popup      = "네 또는 아니오로 답해보세요."
-            else:
-                reply      = "Hmm, try to say the name of your country in English!"
-                next_stage = 'await_country'
-                popup      = "'한국'을 영어로 말해보세요."
+        # 히스토리에 현재 발화 추가 (food context 포함)
+        history.append({
+            "role": "user",
+            "content": user_message + food_context
+        })
 
-        # ════════════════════════════════════════════════════
-        # STAGE 4 : 음식1 Yes/No — 예: Do you like Kimbap?
-        # ════════════════════════════════════════════════════
-        elif stage == 'await_food1_answer':
-            if has_yes(t):
-                reply = f"Great! Now ask me a question!"
-            elif has_no(t):
-                reply = f"Oh, okay! Now ask me a question!"
-            elif judge_keyword(t, "don't know", "idk", "모르", "몰라"):
-                reply = f"That's fine! Now ask me a question!"
-            else:
-                reply      = f"Hmm, you can just say Yes or No!"
-                next_stage = 'await_food1_answer'
-                popup      = "네 또는 아니오로 답해보세요."
-                return _respond(reply, popup, next_stage, fireworks, student_info, user_message, history)
-            next_stage = 'await_ask_food1'
-            popup      = f"{ASK_FOOD_1_KO}를 좋아하는지 영어로 물어보세요."
+        reply = call_gemini(history, max_tokens=200)
 
-        # ════════════════════════════════════════════════════
-        # STAGE 5 : 학생이 루카에게 음식1 질문
-        #           예: Do you like pizza?
-        # ════════════════════════════════════════════════════
-        elif stage == 'await_ask_food1':
-            if judge_keyword(t, ASK_FOOD_1):
-                reply      = LUCA_ANSWER_1
-                next_stage = 'await_ask_food2'
-                popup      = f"{ASK_FOOD_2_KO}를 좋아하는지 영어로 물어보세요."
-            else:
-                reply      = f"Hmm, try asking me: Do you like {ASK_FOOD_1}?"
-                next_stage = 'await_ask_food1'
-                popup      = f"{ASK_FOOD_1_KO}를 좋아하는지 영어로 물어보세요."
+        if not reply:
+            reply = "I am a little shy today. Can you say that again?"
 
-        # ════════════════════════════════════════════════════
-        # STAGE 6 : 학생이 루카에게 음식2 질문
-        #           예: Do you like ice cream?
-        # ════════════════════════════════════════════════════
-        elif stage == 'await_ask_food2':
-            if judge_keyword(t, ASK_FOOD_2, ASK_FOOD_2_ALT):
-                reply      = LUCA_ANSWER_2
-                next_stage = 'await_food2_answer'
-                popup      = "네 또는 아니오로 답해보세요."
-            else:
-                reply      = f"Hmm, try asking me: Do you like {ASK_FOOD_2_KO} in English?"
-                next_stage = 'await_ask_food2'
-                popup      = f"{ASK_FOOD_2_KO}를 좋아하는지 영어로 물어보세요."
-
-        # ════════════════════════════════════════════════════
-        # STAGE 7 : 음식2 답변 — Yes / No
-        # ════════════════════════════════════════════════════
-        elif stage == 'await_food2_answer':
-            # ✅ ASK_FOOD_2_EN(영어 전체 이름)을 사용 — TTS 정상 출력
-            # ✅ has_yes/has_no로 먼저 판정 → Gemini 호출 최소화
-            if has_yes(t):
-                reaction = f"Oh, you like {ASK_FOOD_2_EN} too!"
-            elif has_no(t):
-                reaction = f"Oh, you don't like {ASK_FOOD_2_EN} either!"
-            else:
-                reaction = call_gemini(
-                    f'The student was asked "Do you like {ASK_FOOD_2_EN}?" '
-                    f'and replied: "{user_message}". '
-                    f'React warmly in ONE complete English sentence.'
-                ) or "I see!"
-            reply      = f"{reaction} Do you have any questions?"
-            next_stage = 'free_talk'
-            popup      = "자유롭게 원하는 질문을 해보세요. 질문이 없다면 No, thank you. 라고 말해주세요."
-
-        # ════════════════════════════════════════════════════
-        # STAGE 8 : 자유 대화 (반복) — No → 종료 + 폭죽
-        # ════════════════════════════════════════════════════
-        elif stage == 'free_talk':
-            no_phrases = ['no thank', 'no, thank', 'no thanks', 'nope', '없어', '없음', '아니']
-            is_no = any(p in t for p in no_phrases) or re.fullmatch(r'no[.!]?', t.strip())
-            if is_no:
-                reply      = f"Okay! It was a nice talk. Good bye!"
-                next_stage = 'done'
-                popup      = None
-                fireworks  = True
-            else:
-                answer = call_gemini(
-                    f'A Korean 3rd-grade student asked {CHARACTER_NAME} from {CHARACTER_COUNTRY}: "{user_message}". '
-                    f'Answer in 1-2 short, complete sentences at A1 English level. '
-                    f'Use only very simple words. Then ask: Do you have any questions?',
-                    max_tokens=100
-                ) or "That is a great question! Do you have any questions?"
-                # Gemini가 "Do you have any questions?"를 안 붙이면 강제 추가
-                if "any questions" not in answer.lower():
-                    answer = f"{answer} Do you have any questions?"
-                reply      = answer
-                next_stage = 'free_talk'
-                popup      = "자유롭게 원하는 질문을 해보세요. 질문이 없다면 No, thank you. 라고 말해주세요."
-
-        # ════════════════════════════════════════════════════
-        # STAGE 9 : 대화 종료 후
-        # ════════════════════════════════════════════════════
-        else:
-            reply      = f"Okay! It was a nice talk. Good bye!"
-            next_stage = 'done'
-            fireworks  = True
+        # food_context를 히스토리에서 제거 (저장 시 깔끔하게)
+        if history and food_context in history[-1].get("content", ""):
+            history[-1]["content"] = user_message
 
     except Exception as e:
         print(f"❌ 에러: {e}")
@@ -345,11 +358,9 @@ def chat():
 # 📦 공통 응답 함수 (구글 시트 저장 포함)
 # ─────────────────────────────────────────────────────────────
 def _respond(reply, popup, next_stage, fireworks, student_info, user_message, history):
-    # 히스토리에 어시스턴트 응답 추가
     history.append({"role": "assistant", "content": reply})
-    session['chat_history'] = history[-20:]   # 최근 20턴만 유지
+    session['chat_history'] = history[-30:]  # 최근 30턴 유지
 
-    # 구글 시트 기록
     if sheet:
         try:
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
