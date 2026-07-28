@@ -146,7 +146,7 @@
             border-top-color: rgba(255,255,255,0.96);
         }
 
-        /* 캐릭터 GIF */
+        /* 캐릭터 GIF — 검정 배경 제거 */
         #character-gif {
             position: relative;
             z-index: 12;                /* 말풍선보다 앞 */
@@ -155,10 +155,15 @@
             max-width: 220px;
             min-width: 100px;
             object-fit: contain;
-            filter: drop-shadow(0 8px 18px rgba(0,0,0,0.5));
             display: block;
-            /* 살짝 아래로 겹쳐 채팅 영역과 자연스럽게 연결 */
             margin-bottom: -18px;
+            /* ✅ mix-blend-mode: screen → GIF의 검정(#000) 배경을 투명하게 처리 */
+            mix-blend-mode: screen;
+            /* drop-shadow는 mix-blend-mode와 함께 쓰면 효과가 중복되므로 제거 */
+        }
+        /* 캐릭터를 감싸는 wrapper에 배경을 약간 어둡게 해서 screen 효과 강화 */
+        #top-fixed {
+            background: transparent;
         }
 
         /* ══════════════════════════════════
@@ -576,7 +581,7 @@ function startApp() {
         conversationHistory.push({ role: 'assistant', content: opening });
         speak(opening, () => {
             hint.innerText = '🎙️ 버튼을 누르고 대답해보세요!';
-            showKoreanPopup(`${CONFIG.characterName}에게 영어로 인사를 해보세요!\n(예: Hi! / Hello!)`);
+            showKoreanPopup(`${CONFIG.characterName}에게 영어로 인사를 해보세요!`);
         });
     }, 300);
 }
@@ -686,11 +691,12 @@ async function handleConversation(userInput) {
 
         addChatMessage('luca', data.reply);
 
-        // 팝업 표시/숨김
-        if (data.popup) showKoreanPopup(data.popup);
-        else            hideKoreanPopup();
+        // ✅ 팝업은 TTS가 끝난 후 + 200ms 뒤에 표시 (너무 일찍 뜨는 문제 해결)
+        // speak 콜백 안에서만 팝업을 띄움
+        const pendingPopup = data.popup || null;
 
         if (data.fireworks) {
+            hideKoreanPopup();
             speak(data.reply, () => {
                 hint.innerText = '수고했어요! 🎉';
                 micBtn.style.display = 'none';
@@ -699,6 +705,12 @@ async function handleConversation(userInput) {
         } else {
             speak(data.reply, () => {
                 hint.innerText = '🎙️ 버튼을 누르고 대답해보세요!';
+                // TTS 완전히 끝난 후 200ms 뒤 팝업 표시
+                if (pendingPopup) {
+                    setTimeout(() => showKoreanPopup(pendingPopup), 200);
+                } else {
+                    hideKoreanPopup();
+                }
             });
         }
 
