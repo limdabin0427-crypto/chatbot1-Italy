@@ -36,8 +36,8 @@ else:
     print("⚠️  GEMINI_API_KEY 없음")
 
 def make_model(system_instruction=None):
-    # 가장 구동률이 높고 안정적인 1.5-flash 모델
-    kwargs = {"model_name": "gemini-1.5-flash"}
+    # 가장 구동률이 높고 안정적인 2.5-flash 모델
+    kwargs = {"model_name": "gemini-2.5-flash"}
     if system_instruction:
         kwargs["system_instruction"] = system_instruction
     return genai.GenerativeModel(**kwargs)
