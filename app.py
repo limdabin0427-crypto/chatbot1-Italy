@@ -24,8 +24,10 @@ CHARACTER_AGE     = 10
 CHARACTER_GENDER  = "boy"
 
 # 구글 시트 설정
-SPREADSHEET_ID = "1GrSDc23pBeeLZnEh3oeQwjEcOIAxH-cZPDBYPr8c3oY"
-SHEET_TAB      = "Sheet1"
+# ✏️ SPREADSHEET_TITLE: 구글 드라이브에 보이는 스프레드시트 파일명 (정확히 일치해야 함)
+# ✏️ SHEET_TAB: 기록할 탭(워크시트) 이름 — 없으면 자동 생성됨
+SPREADSHEET_TITLE = "chatbot-Italy"   # ← 스프레드시트 파일명
+SHEET_TAB         = "Italy"           # ← 탭 이름 (나라별로 변경)
 
 # ═══════════════════════════════════════════════════════════════
 # 여기서부터는 공통 코드 — 수정 불필요
@@ -53,7 +55,7 @@ sheet = None
 try:
     raw_creds = os.environ.get("GOOGLE_SERVICE_ACCOUNT")
     if not raw_creds:
-        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT 없음")
+        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT 환경변수 없음")
     service_account_info = json.loads(raw_creds)
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
@@ -61,8 +63,30 @@ try:
     ]
     creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
     gc    = gspread.authorize(creds)
-    sheet = gc.open_by_key(SPREADSHEET_ID).worksheet(SHEET_TAB)
-    print(f"✅ 구글 시트 연동 성공: {service_account_info.get('client_email')}")
+
+    # ── 스프레드시트 열기 (파일 제목으로) ──────────────────────
+    spreadsheet = gc.open(SPREADSHEET_TITLE)
+
+    # ── 탭(워크시트) 열기 — 없으면 자동 생성 ──────────────────
+    try:
+        sheet = spreadsheet.worksheet(SHEET_TAB)
+        print(f"✅ 기존 탭 연결: [{SHEET_TAB}]")
+    except gspread.exceptions.WorksheetNotFound:
+        sheet = spreadsheet.add_worksheet(title=SHEET_TAB, rows=1000, cols=6)
+        # 헤더 행 추가
+        sheet.append_row(["시간", "학생정보", "학생발화", "루카응답", "단계", "나라"])
+        print(f"✅ 새 탭 생성: [{SHEET_TAB}]")
+
+    print(f"✅ 구글 시트 연동 성공 → 파일: [{SPREADSHEET_TITLE}] / 탭: [{SHEET_TAB}]")
+    print(f"   서비스 계정: {service_account_info.get('client_email')}")
+
+except gspread.exceptions.SpreadsheetNotFound:
+    print(f"❌ 스프레드시트 [{SPREADSHEET_TITLE}]를 찾을 수 없습니다.")
+    print("   확인사항: 1) 파일명 정확한지  2) 서비스 계정을 편집자로 공유했는지")
+    sheet = None
+except json.JSONDecodeError:
+    print("❌ GOOGLE_SERVICE_ACCOUNT JSON 파싱 실패 — 환경변수 값을 확인하세요.")
+    sheet = None
 except Exception as e:
     print(f"❌ 구글 시트 연동 실패: {e}")
     sheet = None
@@ -208,9 +232,9 @@ def detect_stage(user_message, current_stage, session_data):
         greet_words = ['hi', 'hello', 'hey', 'nice to meet', 'good morning', 'good afternoon',
                        '안녕', '헬로', '하이']
         if any(w in t for w in greet_words):
-            return 'await_feeling', "지금 기분을 영어로 말해보세요.\n(예: I'm good. / I'm happy.)"
+            return 'await_feeling', "지금 기분을 영어로 말해보세요."
         else:
-            return 'await_greeting', f"{CHARACTER_NAME}에게 영어로 인사를 해보세요!\n(예: Hi! / Hello!)"
+            return 'await_greeting', f"{CHARACTER_NAME}에게 영어로 인사를 해보세요!"
 
     elif current_stage == 'await_feeling':
         # 기분 표현이 있으면 다음으로
@@ -219,9 +243,9 @@ def detect_stage(user_message, current_stage, session_data):
                          'sick', 'bored', 'angry', 'sleepy', 'hungry', 'terrible',
                          'so-so', 'not good', 'well', 'ok', '좋아', '행복', '피곤']
         if any(w in t for w in feeling_words) or len(t) >= 2:
-            return 'free_question', "루카에게 궁금한 것을 물어보세요!\n(예: Do you like pizza?)"
+            return 'free_question', "루카에게 궁금한 것을 물어보세요!"
         else:
-            return 'await_feeling', "지금 기분을 영어로 말해보세요.\n(예: I'm good. / I'm happy.)"
+            return 'await_feeling', "지금 기분을 영어로 말해보세요."
 
     elif current_stage == 'free_question':
         if is_end:
@@ -237,19 +261,19 @@ def detect_stage(user_message, current_stage, session_data):
                     session_data['second_food'] = food
                     # 두 번째는 첫 번째의 반대
                     session_data['second_answer'] = 'no' if session_data['first_answer'] == 'yes' else 'yes'
-                    return 'await_student_food_answer', "네 또는 아니오로 답해보세요.\n(Yes, I do. / No, I don't.)"
-            return 'free_question', "루카에게 더 궁금한 것이 있나요?\n(예: Do you like ice cream?)"
-        return 'free_question', "루카에게 더 궁금한 것이 있나요?\n(예: 다른 것도 물어보세요!)"
+                    return 'await_student_food_answer', "네 또는 아니오로 답해보세요."
+            return 'free_question', "루카에게 더 궁금한 것이 있나요?"
+        return 'free_question', "루카에게 더 궁금한 것이 있나요?"
 
     elif current_stage == 'await_student_food_answer':
         if is_end:
             return 'done', None
-        return 'free_question', "루카에게 더 궁금한 것이 있나요?\n질문이 없다면 No, thank you. 라고 말해주세요."
+        return 'free_question', "루카에게 더 궁금한 것이 있나요?"
 
     elif current_stage == 'free_question_2':
         if is_end:
             return 'done', None
-        return 'free_question_2', "루카에게 더 궁금한 것이 있나요?\n질문이 없다면 No, thank you. 라고 말해주세요."
+        return 'free_question_2', "루카에게 더 궁금한 것이 있나요?"
 
     else:
         return 'done', None
@@ -364,7 +388,7 @@ def _respond(reply, popup, next_stage, fireworks, student_info, user_message, hi
     if sheet:
         try:
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            sheet.append_row([now, student_info, user_message, reply, next_stage])
+            sheet.append_row([now, student_info, user_message, reply, next_stage, CHARACTER_COUNTRY])
         except Exception as e:
             print(f"시트 저장 실패: {e}")
     else:
