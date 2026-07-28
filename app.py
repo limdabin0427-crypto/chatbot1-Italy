@@ -15,7 +15,7 @@ app.secret_key = os.urandom(24)
 CORS(app)
 
 # ═══════════════════════════════════════════════════════════════
-# ✏️  나라별 챗봇 설정 — 이 블록만 바꾸면 다른 나라 챗봇 완성!
+# ✏️  나라별 챗봇 설정
 # ═══════════════════════════════════════════════════════════════
 
 CHARACTER_NAME    = "Luca"
@@ -23,19 +23,12 @@ CHARACTER_COUNTRY = "Italy"
 CHARACTER_AGE     = 10
 CHARACTER_GENDER  = "boy"
 
-# 구글 시트 설정
-# ✏️ SPREADSHEET_TITLE: 구글 드라이브에 보이는 스프레드시트 파일명 (정확히 일치해야 함)
-# ✏️ SHEET_TAB: 기록할 탭(워크시트) 이름 — 없으면 자동 생성됨
-SPREADSHEET_TITLE = "chatbot-Italy"   # ← 스프레드시트 파일명
-SHEET_TAB         = "Italy"           # ← 탭 이름 (나라별로 변경)
+SPREADSHEET_TITLE = "chatbot-Italy"
+SHEET_TAB         = "Italy"
 
 # ═══════════════════════════════════════════════════════════════
-# 여기서부터는 공통 코드 — 수정 불필요
+# 🔑 Gemini API 설정 (가장 표준적인 1.5-flash 적용)
 # ═══════════════════════════════════════════════════════════════
-
-# ─────────────────────────────────────────────────────────────
-# 🔑 Gemini API 설정
-# ─────────────────────────────────────────────────────────────
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
@@ -43,7 +36,8 @@ else:
     print("⚠️  GEMINI_API_KEY 없음")
 
 def make_model(system_instruction=None):
-    kwargs = {"model_name": "gemini-2.5-flash"}
+    # 가장 구동률이 높고 안정적인 1.5-flash 모델
+    kwargs = {"model_name": "gemini-1.5-flash"}
     if system_instruction:
         kwargs["system_instruction"] = system_instruction
     return genai.GenerativeModel(**kwargs)
@@ -64,35 +58,24 @@ try:
     creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
     gc    = gspread.authorize(creds)
 
-    # ── 스프레드시트 열기 (파일 제목으로) ──────────────────────
     spreadsheet = gc.open(SPREADSHEET_TITLE)
 
-    # ── 탭(워크시트) 열기 — 없으면 자동 생성 ──────────────────
     try:
         sheet = spreadsheet.worksheet(SHEET_TAB)
         print(f"✅ 기존 탭 연결: [{SHEET_TAB}]")
     except gspread.exceptions.WorksheetNotFound:
         sheet = spreadsheet.add_worksheet(title=SHEET_TAB, rows=1000, cols=6)
-        # 헤더 행 추가
         sheet.append_row(["시간", "학생정보", "학생발화", "루카응답", "단계", "나라"])
         print(f"✅ 새 탭 생성: [{SHEET_TAB}]")
 
     print(f"✅ 구글 시트 연동 성공 → 파일: [{SPREADSHEET_TITLE}] / 탭: [{SHEET_TAB}]")
-    print(f"   서비스 계정: {service_account_info.get('client_email')}")
 
-except gspread.exceptions.SpreadsheetNotFound:
-    print(f"❌ 스프레드시트 [{SPREADSHEET_TITLE}]를 찾을 수 없습니다.")
-    print("   확인사항: 1) 파일명 정확한지  2) 서비스 계정을 편집자로 공유했는지")
-    sheet = None
-except json.JSONDecodeError:
-    print("❌ GOOGLE_SERVICE_ACCOUNT JSON 파싱 실패 — 환경변수 값을 확인하세요.")
-    sheet = None
 except Exception as e:
     print(f"❌ 구글 시트 연동 실패: {e}")
     sheet = None
 
 # ─────────────────────────────────────────────────────────────
-# 🌍 시스템 프롬프트 (전체 대화 규칙을 Gemini에게 전달)
+# 🌍 시스템 프롬프트
 # ─────────────────────────────────────────────────────────────
 SYSTEM_PROMPT = f"""
 You are {CHARACTER_NAME}, a {CHARACTER_AGE}-year-old {CHARACTER_GENDER} from {CHARACTER_COUNTRY}.
@@ -101,6 +84,8 @@ You are an EFL learning chatbot for Korean 3rd-grade elementary students (comple
 === LANGUAGE RULES ===
 - Always reply ONLY in English. Never use Korean in your reply.
 - If the student writes in Korean or mixed Korean-English, understand their meaning but reply only in English.
+- Students may mix Korean and English or pronounce Korean food names with Korean accents.
+- If a word appears to be a speech recognition mistake, infer the student's intended food from the conversation context and answer naturally in English.
 - Use only very simple words: feelings, food names, colors, animals, numbers.
 - Keep replies to 1-2 short, complete sentences. Never leave a sentence unfinished.
 - NO emojis. NO special symbols. Plain text only (TTS reads this aloud).
@@ -149,29 +134,23 @@ When the student asks "Do you like (food)?":
       - If your second answer was NO → "Oh, we are the same! I don't like it either! Great!"
       - If your second answer was YES → "Oh, that's okay. We can be different."
 
-  Rule D — Any other "Do you like~?" question:
-    Randomly answer "Yes, I do." or "No, I don't."
+  Rule D — Any other food question:
+    For any later "Do you like...?" questions, answer naturally with either YES or NO.
+    Use "it" instead of repeating the food name.
 
 [STEP 5 - MORE QUESTIONS]
 After the food exchange is done, ask: "Do you have any other questions?"
 - If student asks a non-food question: give a simple, appropriate A1-level answer.
-- If student says no (no, no thank you, i don't have, 없어요, 없어, 괜찮아요):
-  Reply: "It was nice to meet you. See you next time! Bye."
-  Then the conversation ends.
-
-=== HINT SYSTEM ===
-The frontend shows Korean hint boxes separately. You do NOT need to give Korean hints.
-Just reply naturally in English following the flow above.
+- If student says no: Reply "It was nice to meet you. See you next time! Bye."
 
 === IMPORTANT ===
 - Accept one-word answers (e.g., "happy", "yes", "pizza") as valid.
-- If the student says "I don't know" or similar, gently move to the next step.
 - Never ask two questions at once.
 - Always complete every sentence fully before ending your reply.
 """
 
 # ─────────────────────────────────────────────────────────────
-# 🛠️  유틸리티
+# 🛠️  유틸리티 및 Gemini 호출 (진짜 에러 출력 기능 추가)
 # ─────────────────────────────────────────────────────────────
 EMOJI_PATTERN = re.compile(
     "[" "\U0001F1E6-\U0001F1FF" "\U0001F300-\U0001FAFF"
@@ -182,62 +161,55 @@ def strip_emoji(text):
     return EMOJI_PATTERN.sub('', text or '').strip()
 
 def call_gemini(history_messages, max_tokens=200):
-    """
-    전체 대화 히스토리를 넘겨서 Gemini가 흐름을 파악하고 응답.
-    ⚠️ stop_sequences 사용 금지 (문장 중간 잘림 유발)
-    ⚠️ max_tokens 200 이상 유지 (80 이하면 잘림 발생)
-    """
+    # 1) API 키가 비어있는 경우
     if not GEMINI_KEY:
-        return ""
+        return "ERROR: GEMINI_API_KEY 환경변수가 없습니다."
     try:
         model  = make_model(SYSTEM_PROMPT)
         config = genai.types.GenerationConfig(
             max_output_tokens=max_tokens,
             temperature=0.8,
         )
-        # Gemini용 메시지 포맷으로 변환
-        gemini_messages = []
+        
+        contents = []
         for msg in history_messages:
-            role    = "user" if msg["role"] == "user" else "model"
-            gemini_messages.append({"role": role, "parts": [msg["content"]]})
+            role = "user" if msg["role"] == "user" else "model"
+            contents.append({
+                "role": role,
+                "parts": [{"text": msg["content"]}]
+            })
 
-        chat = model.start_chat(history=gemini_messages[:-1])
-        response = chat.send_message(
-            gemini_messages[-1]["parts"][0],
+        response = model.generate_content(
+            contents,
             generation_config=config
         )
+        
         raw = strip_emoji(response.text.strip())
-        # 문장이 잘렸으면 마침표 추가
         if raw and raw[-1] not in ".!?":
             raw += "."
         return raw
+
     except Exception as e:
-        print(f"Gemini 에러: {e}")
+        # 2) API 호출 시 에러가 나면 챗봇 창에 그대로 원인을 출력해줍니다!
+        print(f"❌ Gemini API 호출 에러: {e}")
         traceback.print_exc()
-        return ""
+        return f"API ERROR: {str(e)}"
 
 def detect_stage(user_message, current_stage, session_data):
-    """
-    학생 발화 + 현재 단계를 보고 다음 단계와 팝업을 결정.
-    팝업(한국어 힌트)은 여기서만 관리. Gemini 응답과 분리.
-    """
     t = user_message.lower().strip()
 
-    # 종료 감지 (어느 단계에서든)
     end_phrases = ['no thank', 'no thanks', 'no, thank', 'bye', 'goodbye',
                    '없어요', '없어', '괜찮아요', '없음']
     is_end = any(p in t for p in end_phrases) or re.fullmatch(r'no[.!]?', t)
 
     if current_stage == 'await_greeting':
-        greet_words = ['hi', 'hello', 'hey', 'nice to meet', 'good morning', 'good afternoon',
-                       '안녕', '헬로', '하이']
+        greet_words = ['hi', 'hello', 'hey', 'nice to meet', 'good morning', 'good afternoon', '안녕', '헬로', '하이']
         if any(w in t for w in greet_words):
             return 'await_feeling', "지금 기분을 영어로 말해보세요."
         else:
             return 'await_greeting', f"{CHARACTER_NAME}에게 영어로 인사를 해보세요!"
 
     elif current_stage == 'await_feeling':
-        # 기분 표현이 있으면 다음으로
         feeling_words = ['fine', 'happy', 'good', 'awesome', 'perfect', 'excited', 'okay',
                          'best', 'wonderful', 'super', 'great', 'bad', 'sad', 'tired',
                          'sick', 'bored', 'angry', 'sleepy', 'hungry', 'terrible',
@@ -250,7 +222,6 @@ def detect_stage(user_message, current_stage, session_data):
     elif current_stage == 'free_question':
         if is_end:
             return 'done', None
-        # 음식 질문 감지
         if 'do you like' in t or ('like' in t and ('food' in t or _has_food_word(t))):
             food = _extract_food(t)
             if food:
@@ -259,7 +230,6 @@ def detect_stage(user_message, current_stage, session_data):
                     session_data['first_answer'] = random.choice(['yes', 'no'])
                 elif 'second_food' not in session_data:
                     session_data['second_food'] = food
-                    # 두 번째는 첫 번째의 반대
                     session_data['second_answer'] = 'no' if session_data['first_answer'] == 'yes' else 'yes'
                     return 'await_student_food_answer', "네 또는 아니오로 답해보세요."
             return 'free_question', "루카에게 더 궁금한 것이 있나요?"
@@ -278,9 +248,7 @@ def detect_stage(user_message, current_stage, session_data):
     else:
         return 'done', None
 
-
 def _has_food_word(t):
-    """음식 관련 단어가 포함돼 있는지 확인."""
     food_words = ['pizza', 'ice cream', 'icecream', 'spaghetti', 'pasta', 'burger',
                   'hamburger', 'sushi', 'ramen', 'taco', 'sandwich', 'apple', 'banana',
                   'cake', 'cookie', 'chocolate', 'kimchi', 'rice', 'noodle', 'bread',
@@ -289,7 +257,6 @@ def _has_food_word(t):
     return any(f in t for f in food_words)
 
 def _extract_food(t):
-    """학생 발화에서 음식 이름 추출."""
     food_list = [
         'pizza', 'ice cream', 'spaghetti', 'pasta', 'burger', 'hamburger',
         'sushi', 'ramen', 'taco', 'sandwich', 'apple', 'banana', 'cake',
@@ -315,11 +282,10 @@ def chat():
     user_message = (data.get('message') or '').strip()
     stage        = (data.get('stage') or 'await_greeting').strip()
 
-    # 세션 초기화
     if 'chat_history' not in session:
         session['chat_history'] = []
     if 'food_data' not in session:
-        session['food_data'] = {}   # first_food, first_answer, second_food, second_answer
+        session['food_data'] = {}
 
     history   = session['chat_history']
     food_data = session['food_data']
@@ -328,21 +294,17 @@ def chat():
     popup     = None
 
     if not GEMINI_KEY:
-        reply = "Sorry, I cannot talk right now. Please ask your teacher."
+        reply = "ERROR: GEMINI_API_KEY가 등록되지 않았습니다."
         return _respond(reply, popup, stage, fireworks, student_info, user_message, history)
 
     try:
-        # ── 단계 판정 및 팝업 결정 ─────────────────────────
         next_stage, popup = detect_stage(user_message, stage, food_data)
-        session['food_data'] = food_data  # 업데이트된 food_data 저장
+        session['food_data'] = food_data
 
-        # ── 종료 처리 ──────────────────────────────────────
         if next_stage == 'done':
             fireworks = True
             popup     = None
 
-        # ── Gemini 호출 (히스토리 전체 전달) ───────────────
-        # 세션 힌트: food_data를 시스템 컨텍스트로 추가
         food_context = ""
         if food_data.get('first_food'):
             food_context = (
@@ -354,7 +316,6 @@ def chat():
                 f"Use this context to give the correct answer and reaction.\n"
             )
 
-        # 히스토리에 현재 발화 추가 (food context 포함)
         history.append({
             "role": "user",
             "content": user_message + food_context
@@ -365,25 +326,20 @@ def chat():
         if not reply:
             reply = "I am a little shy today. Can you say that again?"
 
-        # food_context를 히스토리에서 제거 (저장 시 깔끔하게)
         if history and food_context in history[-1].get("content", ""):
             history[-1]["content"] = user_message
 
     except Exception as e:
         print(f"❌ 에러: {e}")
         traceback.print_exc()
-        reply      = "I am a little shy today. Can you say that again?"
+        reply      = f"SERVER ERROR: {str(e)}"
         next_stage = stage
 
     return _respond(reply, popup, next_stage, fireworks, student_info, user_message, history)
 
-
-# ─────────────────────────────────────────────────────────────
-# 📦 공통 응답 함수 (구글 시트 저장 포함)
-# ─────────────────────────────────────────────────────────────
 def _respond(reply, popup, next_stage, fireworks, student_info, user_message, history):
     history.append({"role": "assistant", "content": reply})
-    session['chat_history'] = history[-30:]  # 최근 30턴 유지
+    session['chat_history'] = history[-30:]
 
     if sheet:
         try:
@@ -400,7 +356,6 @@ def _respond(reply, popup, next_stage, fireworks, student_info, user_message, hi
         'stage'    : next_stage,
         'fireworks': fireworks,
     })
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
