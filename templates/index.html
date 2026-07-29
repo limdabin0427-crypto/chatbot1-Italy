@@ -5,55 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Let's Meet New Friends!</title>
 
-    <!-- ============================================================
-         ✏️  CONFIG — 나라별로 이 블록만 교체하면 됩니다
-         ============================================================ -->
     <script>
     const CONFIG = {
         characterName : "Luca",
         country       : "Italy",
-
         gif: {
             greeting : "greeting.gif",
             speaking : "speaking.gif",
             yes      : "yes.gif",
             no       : "no.gif",
         },
-
         backgrounds: [
             "italy background 1.gif",
             "italy background 2.gif",
             "italy background 3.gif",
             "italy background 4.gif",
         ],
-
-        flagImg: "italy flag.gif",
-
-        tts: {
-            gender   : "male",
-            childMode: true,
-            rate     : 0.85,
-        },
-
+        flagImg    : "italy flag.gif",
+        tts: { gender: "male", childMode: true, rate: 0.85 },
         openingLine: "Hi! My name is Luca. Nice to meet you.",
-        finaleMsg: "Great job! Let's meet new friends!\n잘했어요! 다른 나라 친구도 만나보세요!",
+        finaleMsg  : "Great job! Let's meet new friends!\n잘했어요! 다른 나라 친구도 만나보세요!",
     };
     </script>
-    <!-- ============================================================ -->
 
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body, html {
+        html, body {
             width: 100%; height: 100%;
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
-        /* ══════════════════════════════════════════════════
-           전체 컨테이너 — 상단 50% / 하단 50% 분할
-        ══════════════════════════════════════════════════ */
-        #app-container {
+        /* ════════════════════════════════════
+           전체 앱: 100vh, flex column
+        ════════════════════════════════════ */
+        #app {
             width: 100vw;
             height: 100dvh;
             display: flex;
@@ -62,259 +49,222 @@
             overflow: hidden;
         }
 
-        /* ══════════════════════════════════════════════════
-           배경 슬라이드쇼 (전체 화면 고정)
-        ══════════════════════════════════════════════════ */
-        #bg-slideshow {
-            position: fixed;
-            inset: 0;
-            z-index: 0;
-            pointer-events: none;
+        /* ── 배경 (전체 화면 고정) ── */
+        #bg {
+            position: fixed; inset: 0;
+            z-index: 0; pointer-events: none;
         }
         .bg-slide {
             position: absolute; inset: 0;
-            background-size: cover;
-            background-position: center top;
+            background-size: cover; background-position: center;
             opacity: 0;
-            animation: slideFade 24s infinite ease-in-out;
+            animation: bgFade 24s infinite ease-in-out;
         }
-        @keyframes slideFade {
+        @keyframes bgFade {
             0%{opacity:0} 4%{opacity:1} 25%{opacity:1} 29%{opacity:0} 100%{opacity:0}
         }
 
-        /* ══════════════════════════════════════════════════
-           상단 60% — 캐릭터 존
-        ══════════════════════════════════════════════════ */
-        #top-section {
+        /* ════════════════════════════════════
+           상단 50% — 캐릭터 존
+        ════════════════════════════════════ */
+        #top {
             position: relative;
-            flex: 0 0 50%;
+            flex: 0 0 50%;        /* ← 정확히 50% */
             z-index: 5;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-end; /* 캐릭터가 하단 경계선에 맞닿도록 */
-            overflow: visible;
+            /* 말풍선은 위쪽, 캐릭터는 아래쪽에 붙게 */
+            justify-content: space-between;
+            padding: 14px 14px 0;
+            overflow: hidden;     /* 캐릭터가 밖으로 나가지 않게 */
         }
 
-        /* 국기 — 좌측 상단 고정 */
-        #flag-img {
+        /* 국기 */
+        #flag {
             position: absolute;
             top: 14px; left: 14px;
-            width: clamp(36px, 9vw, 54px);
-            height: auto;
-            border-radius: 5px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.45);
+            width: clamp(34px, 8vw, 50px); height: auto;
+            border-radius: 4px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.4);
             z-index: 20;
         }
 
-        /* 말풍선 — 캐릭터 머리 위, z-index 캐릭터보다 낮게 */
-        #live-bubble {
+        /* 말풍선 */
+        #bubble {
             position: relative;
-            z-index: 8;           /* 캐릭터(10)보다 낮아서 캐릭터가 앞으로 */
+            z-index: 8;
             background: rgba(255,255,255,0.97);
-            border-radius: 22px;
-            box-shadow: 0 6px 28px rgba(0,0,0,0.18);
-            padding: 14px 22px;
-            width: min(72vw, 310px);
+            border-radius: 20px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+            padding: 12px 20px;
+            width: min(70vw, 300px);
             text-align: center;
-            font-size: clamp(14px, 3.8vw, 19px);
+            font-size: clamp(13px, 3.6vw, 18px);
             font-weight: 700;
             color: #1a1a2e;
             line-height: 1.5;
             word-break: keep-all;
-            /* 말풍선 아래쪽 꼬리 */
+            display: none;        /* startApp()에서 보임 */
+            /* 말풍선 꼬리 */
             margin-bottom: 0;
-            display: none;
         }
-        /* 꼬리 — 아래 방향 */
-        #live-bubble::after {
+        #bubble::after {
             content: '';
             position: absolute;
-            bottom: -12px; left: 50%;
+            bottom: -10px; left: 50%;
             transform: translateX(-50%);
-            border: 12px solid transparent;
+            border: 10px solid transparent;
             border-top-color: rgba(255,255,255,0.97);
             border-bottom: 0;
         }
 
-        /* 말풍선↔캐릭터 사이 여백 확보용 spacer */
-        #bubble-spacer {
-            height: clamp(8px, 2vh, 16px);
-            flex-shrink: 0;
-        }
-
-        /* 캐릭터 GIF — 상단 60% 영역 수직으로 꽉 채움 */
-        #character-gif {
+        /* 캐릭터 GIF ─ 상단 50% 안에서 남은 공간을 채움 */
+        #char {
             position: relative;
             z-index: 10;
-            /* 상단 60% 영역 높이를 기준으로 contain 방식 꽉 채움 */
+            flex: 1 1 0;          /* 말풍선 제외 남은 높이 전부 */
+            width: 100%;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            overflow: hidden;
+        }
+        #char img {
+            height: 100%;         /* 상단 50% 내 남은 높이를 꽉 채움 */
             width: auto;
-            height: 100%;
-            max-height: 100%;
+            max-width: 100%;
             object-fit: contain;
             object-position: bottom center;
-            display: block;
-            /* 하단 오버레이와 자연스럽게 겹치도록 살짝 내려옴 */
-            margin-bottom: -2px;
-            /* 검정 배경 GIF 투명화 */
-            mix-blend-mode: screen;
+            mix-blend-mode: screen; /* 검정 배경 투명화 */
         }
 
-        /* 캐릭터 감싸는 wrapper — 말풍선 포함 세로 레이아웃 */
-        #character-wrapper {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-end;
-            padding-top: clamp(10px, 3vh, 24px);
-        }
-
-        /* ══════════════════════════════════════════════════
-           하단 40% — 글래스모피즘 대화 존
-        ══════════════════════════════════════════════════ */
-        #bottom-section {
+        /* ════════════════════════════════════
+           하단 50% — 글래스모피즘 대화 존
+        ════════════════════════════════════ */
+        #bottom {
             position: relative;
-            flex: 0 0 50%;
+            flex: 0 0 50%;        /* ← 정확히 50% */
             z-index: 15;
             display: flex;
             flex-direction: column;
-            /* 글래스모피즘 */
-            background: rgba(255, 255, 255, 0.25);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-top-left-radius: 26px;
-            border-top-right-radius: 26px;
-            border-top: 1px solid rgba(255,255,255,0.45);
+            background: rgba(255,255,255,0.22);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            border-top: 1px solid rgba(255,255,255,0.4);
             overflow: hidden;
         }
 
-        /* ── 채팅 스크롤 영역 ── */
-        #chat-history {
+        /* 채팅 스크롤 영역 */
+        #chat {
             flex: 1 1 0;
             min-height: 0;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            padding: 14px 16px 8px;
+            padding: 12px 14px 8px;
             display: flex;
             flex-direction: column;
-            gap: 9px;
-            /* 스크롤바 — 우측 상단, 반투명, 작게 */
+            gap: 8px;
             scrollbar-width: thin;
-            scrollbar-color: rgba(255,255,255,0.35) transparent;
+            scrollbar-color: rgba(255,255,255,0.3) transparent;
         }
-        #chat-history::-webkit-scrollbar {
-            width: 4px;
-        }
-        #chat-history::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        #chat-history::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.38);
-            border-radius: 4px;
+        #chat::-webkit-scrollbar { width: 3px; }
+        #chat::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.35);
+            border-radius: 3px;
         }
 
-        /* 루카 말풍선 — 국기 아이콘 + 텍스트 */
-        .msg-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 7px;
-        }
-        .msg-row.luca-row { align-self: flex-start; max-width: 85%; }
-        .msg-row.user-row { align-self: flex-end; max-width: 85%; }
+        /* 메시지 행 */
+        .row { display: flex; align-items: flex-start; gap: 6px; }
+        .row.luca-row { align-self: flex-start; max-width: 88%; }
+        .row.user-row { align-self: flex-end; max-width: 88%; }
 
         .msg-flag {
-            width: clamp(20px, 5vw, 26px);
-            height: auto;
-            border-radius: 3px;
-            flex-shrink: 0;
-            margin-top: 3px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+            width: clamp(18px, 4.5vw, 24px); height: auto;
+            border-radius: 3px; flex-shrink: 0; margin-top: 2px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
         }
-
         .msg {
-            padding: 9px 13px;
-            border-radius: 16px;
-            font-size: clamp(13px, 3.4vw, 15px);
-            font-weight: 600;
-            line-height: 1.45;
-            word-break: break-word;
+            padding: 8px 12px; border-radius: 14px;
+            font-size: clamp(12px, 3.3vw, 15px);
+            font-weight: 600; line-height: 1.45; word-break: break-word;
         }
         .msg.luca {
-            background: rgba(255,255,255,0.90);
-            color: #1d1d1f;
+            background: rgba(255,255,255,0.92); color: #1d1d1f;
             border-top-left-radius: 3px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.10);
         }
         .msg.user {
-            background: rgba(0,176,155,0.88);
-            color: #fff;
+            background: rgba(0,176,155,0.85); color: #fff;
             border-top-right-radius: 3px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
 
-        /* ── 하단 컨트롤 영역 ── */
-        #bottom-controls {
-            flex: 0 0 auto;
-            padding: 6px 16px 14px;
+        /* ── 하단 컨트롤 (힌트 + 마이크) ── */
+        #controls {
+            flex: 0 0 auto;         /* 절대 축소 안 됨 */
+            padding: 8px 16px 16px;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 6px;
         }
 
-        /* 노란 힌트 캡슐 버튼 */
-        #korean-popup {
+        /* 노란 힌트 캡슐 */
+        #popup {
             width: 100%;
             background: #FFE44D;
             color: #4a3500;
             padding: 10px 18px;
-            border-radius: 50px;   /* 캡슐 모양 */
-            font-size: clamp(12px, 3.3vw, 14px);
+            border-radius: 50px;
+            font-size: clamp(12px, 3.2vw, 14px);
             font-weight: 700;
             text-align: center;
             line-height: 1.4;
-            box-shadow: 0 3px 12px rgba(255,200,0,0.30);
+            box-shadow: 0 3px 10px rgba(200,160,0,0.25);
             white-space: pre-wrap;
-            /* 숨김/표시 애니메이션 */
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            padding-top: 0; padding-bottom: 0;
+            /* 숨김 애니메이션 */
+            max-height: 0; overflow: hidden;
+            opacity: 0; padding-top: 0; padding-bottom: 0;
             transition: max-height 0.32s ease, opacity 0.28s ease, padding 0.28s ease;
         }
-        #korean-popup.show {
-            max-height: 80px;
-            opacity: 1;
+        #popup.show {
+            max-height: 80px; opacity: 1;
             padding: 10px 18px;
         }
 
-        /* 서브 안내 문구 */
+        /* 서브 안내 */
         #hint {
-            color: rgba(255,255,255,0.88);
-            font-size: clamp(11px, 3vw, 13px);
-            font-weight: 600;
+            color: rgba(30,30,30,0.85);
+            font-size: clamp(11px, 2.9vw, 13px);
+            font-weight: 700;
             text-align: center;
-            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
         }
 
-        /* 마이크 버튼 */
-        #mic-btn {
-            width: clamp(54px, 13vw, 64px);
-            height: clamp(54px, 13vw, 64px);
-            border-radius: 50%;
-            border: none;
+        /* 마이크 버튼 — 항상 보임, startApp 전엔 비활성 스타일 */
+        #mic {
+            width: clamp(56px, 13vw, 66px);
+            height: clamp(56px, 13vw, 66px);
+            border-radius: 50%; border: none;
             background: linear-gradient(135deg, #ff416c, #ff4b2b);
             color: #fff;
             font-size: clamp(22px, 5.5vw, 26px);
             cursor: pointer;
-            box-shadow: 0 5px 18px rgba(255,65,108,0.5);
+            box-shadow: 0 5px 18px rgba(255,65,108,0.48);
             transition: transform 0.15s, box-shadow 0.15s;
-            display: none;
+            /* ✅ 처음부터 보이게, 단 비활성 상태 */
+            display: block;
+            opacity: 0.35;
+            pointer-events: none;
         }
-        #mic-btn:active { transform: scale(0.93); }
-        #mic-btn.recording {
+        /* startApp 후 활성화 */
+        #mic.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #mic.active:active { transform: scale(0.93); }
+        #mic.recording {
             background: linear-gradient(135deg, #11998e, #38ef7d);
             box-shadow: 0 0 28px rgba(56,239,125,0.75);
             animation: pulse 1.4s infinite;
@@ -323,437 +273,292 @@
             0%{transform:scale(1)} 50%{transform:scale(1.09)} 100%{transform:scale(1)}
         }
 
-
-
-        /* ══════════════════════════════════════════════════
-           피날레
-        ══════════════════════════════════════════════════ */
-        #finale-overlay {
-            display: none; position: fixed; inset: 0;
-            background: rgba(0,0,0,0.80);
-            z-index: 9998;
-            justify-content: center; align-items: center;
-        }
-        #finale-overlay.show { display: flex; }
+        /* ── 피날레 ── */
+        #finale { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.80); z-index:9998; justify-content:center; align-items:center; }
+        #finale.show { display:flex; }
         #finale-msg {
-            background: linear-gradient(135deg, #fff9e6, #fff);
-            color: #2a2a2a;
-            padding: 30px 26px; border-radius: 24px;
-            font-size: clamp(16px, 4.5vw, 20px);
-            font-weight: 800;
-            text-align: center; line-height: 1.75;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.42);
-            max-width: min(320px, 90vw);
-            border: 3px solid #FFD700;
-            white-space: pre-wrap;
+            background: linear-gradient(135deg,#fff9e6,#fff);
+            color:#2a2a2a; padding:28px 24px; border-radius:22px;
+            font-size:clamp(16px,4.5vw,20px); font-weight:800;
+            text-align:center; line-height:1.75;
+            box-shadow:0 12px 40px rgba(0,0,0,0.4);
+            max-width:min(310px,90vw); border:3px solid #FFD700;
+            white-space:pre-wrap;
         }
-        .spark {
-            position: fixed; border-radius: 50%;
-            pointer-events: none; z-index: 9997;
-            animation: sparkFly 1.3s ease-out forwards;
-        }
-        @keyframes sparkFly {
-            0%  { transform:translate(0,0) scale(1); opacity:1; }
-            100%{ transform:translate(var(--tx),var(--ty)) scale(0.1); opacity:0; }
-        }
+        .spark { position:fixed; border-radius:50%; pointer-events:none; z-index:9997; animation:sparkFly 1.3s ease-out forwards; }
+        @keyframes sparkFly { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(var(--tx),var(--ty)) scale(0.1);opacity:0} }
 
-        /* ══════════════════════════════════════════════════
-           로그인 오버레이
-        ══════════════════════════════════════════════════ */
-        #login-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.88);
-            z-index: 9999;
-            display: flex; justify-content: center; align-items: center;
-        }
+        /* ── 로그인 ── */
+        #login { position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; display:flex; justify-content:center; align-items:center; }
         #login-box {
-            background: #fff;
-            padding: 32px 26px; border-radius: 22px;
-            text-align: center;
-            max-width: 340px; width: 90%;
-            box-shadow: 0 8px 36px rgba(0,0,0,0.38);
+            background:#fff; padding:30px 24px; border-radius:20px;
+            text-align:center; max-width:320px; width:90%;
+            box-shadow:0 8px 32px rgba(0,0,0,0.35);
         }
-        .login-title {
-            font-size: clamp(20px, 5.5vw, 26px);
-            font-weight: 800; color: #1a1a2e;
-            margin-bottom: 6px;
+        .lt { font-size:clamp(19px,5vw,24px); font-weight:800; color:#1a1a2e; margin-bottom:6px; }
+        .ls { font-size:clamp(13px,3.3vw,14px); font-weight:600; color:#555; margin-bottom:2px; }
+        .lk { font-size:clamp(11px,2.8vw,13px); color:#999; margin-bottom:16px; }
+        #name-input {
+            width:100%; padding:11px 14px; border:1.5px solid #ddd; border-radius:9px;
+            font-size:16px; text-align:center; margin-bottom:12px; outline:none;
+            transition:border-color 0.2s;
         }
-        .login-sub-en {
-            font-size: clamp(14px, 3.6vw, 15px);
-            font-weight: 600; color: #444; margin-bottom: 2px;
-        }
-        .login-sub-ko {
-            font-size: clamp(12px, 3vw, 13px);
-            color: #999; margin-bottom: 18px;
-        }
-        #student-name-input {
-            width: 100%; padding: 12px 14px;
-            border: 1.5px solid #ddd; border-radius: 10px;
-            font-size: 16px; text-align: center;
-            margin-bottom: 14px; outline: none;
-            transition: border-color 0.2s;
-        }
-        #student-name-input:focus { border-color: #00b09b; }
-        #login-submit-btn {
-            width: 100%; padding: 13px;
-            background: linear-gradient(135deg, #00b09b, #96c93d);
-            color: #fff; border: none; border-radius: 10px;
-            font-size: clamp(15px, 4vw, 17px); font-weight: 800;
-            cursor: pointer;
-            box-shadow: 0 4px 14px rgba(0,176,155,0.36);
+        #name-input:focus { border-color:#00b09b; }
+        #login-btn {
+            width:100%; padding:12px; border:none; border-radius:9px;
+            background:linear-gradient(135deg,#00b09b,#96c93d);
+            color:#fff; font-size:clamp(14px,3.8vw,16px); font-weight:800; cursor:pointer;
         }
     </style>
 </head>
 <body>
 
-<!-- 로그인 오버레이 -->
-<div id="login-overlay">
+<!-- 로그인 -->
+<div id="login">
     <div id="login-box">
-        <div class="login-title">✈️ Let's meet new friends!</div>
-        <div class="login-sub-en">Enter your number and name.</div>
-        <div class="login-sub-ko">번호와 이름을 입력하세요</div>
-        <input type="text" id="student-name-input" placeholder="예: 01 홍길동">
-        <button id="login-submit-btn">Let's Go! 🚀</button>
+        <div class="lt">✈️ Let's meet new friends!</div>
+        <div class="ls">Enter your number and name.</div>
+        <div class="lk">번호와 이름을 입력하세요</div>
+        <input type="text" id="name-input" placeholder="예: 01 홍길동">
+        <button id="login-btn">Let's Go! 🚀</button>
     </div>
 </div>
 
 <!-- 피날레 -->
-<div id="finale-overlay">
-    <div id="finale-msg"></div>
-</div>
+<div id="finale"><div id="finale-msg"></div></div>
 
-<!-- ════════════════════════════════════════
-     메인 앱
-════════════════════════════════════════ -->
-<div id="app-container">
+<!-- 메인 -->
+<div id="app">
+    <div id="bg"></div>
 
-    <!-- 배경 슬라이드쇼 (JS로 동적 생성) -->
-    <div id="bg-slideshow"></div>
+    <!-- 상단 50% -->
+    <div id="top">
+        <img id="flag" alt="flag">
 
-    <!-- 상단 60% — 캐릭터 존 -->
-    <div id="top-section">
-        <img id="flag-img" alt="flag">
+        <!-- 말풍선 -->
+        <div id="bubble"></div>
 
-        <div id="character-wrapper">
-            <!-- 말풍선 (캐릭터 위) -->
-            <div id="live-bubble"></div>
-            <div id="bubble-spacer"></div>
-            <!-- 캐릭터 GIF -->
-            <img id="character-gif" alt="character">
+        <!-- 캐릭터 -->
+        <div id="char">
+            <img id="char-img" alt="character">
         </div>
     </div>
 
-    <!-- 하단 40% — 글래스모피즘 대화 존 -->
-    <div id="bottom-section">
+    <!-- 하단 50% -->
+    <div id="bottom">
+        <div id="chat"></div>
 
-        <!-- 채팅 스크롤 영역 -->
-        <div id="chat-history"></div>
-
-        <!-- 컨트롤 영역 -->
-        <div id="bottom-controls">
-            <div id="korean-popup"></div>
+        <div id="controls">
+            <div id="popup"></div>
             <div id="hint">잠시만 기다려주세요...</div>
-            <button id="mic-btn">🎙️</button>
+            <button id="mic">🎙️</button>
         </div>
-
     </div>
 </div>
 
-<!-- ════════════════════════════════════════
-     JavaScript (로직 동일, 레이아웃만 변경)
-════════════════════════════════════════ -->
 <script>
-// ── CONFIG 값으로 DOM 초기화 ──────────────────────────────────
-(function initFromConfig() {
-    // 배경 슬라이드쇼
-    const bss = document.getElementById('bg-slideshow');
+/* ── DOM 참조 ── */
+const bubble    = document.getElementById('bubble');
+const popup     = document.getElementById('popup');
+const chat      = document.getElementById('chat');
+const hint      = document.getElementById('hint');
+const mic       = document.getElementById('mic');
+const finale    = document.getElementById('finale');
+const charImg   = document.getElementById('char-img');
+const flagEl    = document.getElementById('flag');
+
+let voices = [], studentInfo = '', stage = 'await_greeting';
+let conversationHistory = [], popupTimer = null;
+
+/* ── CONFIG 초기화 ── */
+(function init() {
+    // 배경
+    const bg = document.getElementById('bg');
     CONFIG.backgrounds.forEach((src, i) => {
         const d = document.createElement('div');
         d.className = 'bg-slide';
         d.style.backgroundImage = `url('${src}')`;
         d.style.animationDelay  = `${i * 6}s`;
-        bss.appendChild(d);
+        bg.appendChild(d);
     });
-    // 국기
-    document.getElementById('flag-img').src = CONFIG.flagImg;
-    // 캐릭터 초기 GIF
-    document.getElementById('character-gif').src = CONFIG.gif.greeting;
-    // 피날레 메시지
+    flagEl.src   = CONFIG.flagImg;
+    charImg.src  = CONFIG.gif.greeting;
     document.getElementById('finale-msg').innerText = CONFIG.finaleMsg;
-    // 페이지 타이틀
-    document.title = `${CONFIG.characterName} - ${CONFIG.country} Chatbot`;
+    document.title = `${CONFIG.characterName} - ${CONFIG.country}`;
 })();
 
-// ── 전역 변수 ────────────────────────────────────────────────
-const liveBubble    = document.getElementById('live-bubble');
-const koreanPopup   = document.getElementById('korean-popup');
-const chatHistory   = document.getElementById('chat-history');
-const hint          = document.getElementById('hint');
-const micBtn        = document.getElementById('mic-btn');
-const finaleOverlay = document.getElementById('finale-overlay');
-const characterGif  = document.getElementById('character-gif');
-const flagImg       = document.getElementById('flag-img');
-
-let voices              = [];
-let studentInfo         = '';
-let conversationHistory = [];
-let stage               = 'await_greeting';
-let popupTimer          = null;
-
-// ── TTS ─────────────────────────────────────────────────────
+/* ── TTS ── */
 function loadVoices() { voices = window.speechSynthesis.getVoices(); }
 loadVoices();
 if (window.speechSynthesis.onvoiceschanged !== undefined)
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
 function pickVoice(gender) {
-    const isMale = (gender || 'male').toLowerCase() === 'male';
-    const highQ  = isMale
-        ? ['google us english', 'google uk english male', 'microsoft guy', 'alex', 'fred', 'daniel', 'tom']
-        : ['google us english', 'google uk english female', 'microsoft zira', 'samantha', 'karen', 'victoria', 'moira'];
-
-    let v = voices.find(v => v.lang.startsWith('en') && highQ.some(n => v.name.toLowerCase().includes(n)));
+    const male = gender !== 'female';
+    const hi   = male
+        ? ['google us english','google uk english male','microsoft guy','alex','daniel','tom']
+        : ['google us english','google uk english female','microsoft zira','samantha','karen'];
+    let v = voices.find(v => v.lang.startsWith('en') && hi.some(n => v.name.toLowerCase().includes(n)));
     if (v) return v;
     v = voices.find(v => v.lang.startsWith('en') && /natural|premium|enhanced|neural/i.test(v.name));
-    if (v) return v;
-    v = voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes(isMale ? 'male' : 'female'));
     if (v) return v;
     return voices.find(v => v.lang.startsWith('en')) || null;
 }
 
-function speak(text, callback) {
+function speak(text, cb) {
     window.speechSynthesis.cancel();
-    liveBubble.innerText = text;
-    liveBubble.style.display = 'block';
-
-    const clean = text
-        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1FFFF}]/gu, '')
-        .replace(/\s{2,}/g, ' ').trim();
-
-    const utt = new SpeechSynthesisUtterance(clean);
-    utt.lang  = 'en-US';
-    utt.rate  = CONFIG.tts.childMode ? CONFIG.tts.rate * 0.95 : CONFIG.tts.rate;
-    utt.pitch = CONFIG.tts.childMode ? 1.35 : 1.0;
-
+    bubble.innerText = text;
+    bubble.style.display = 'block';
+    const clean = text.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu,'').replace(/\s{2,}/g,' ').trim();
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang  = 'en-US';
+    u.rate  = CONFIG.tts.childMode ? CONFIG.tts.rate * 0.95 : CONFIG.tts.rate;
+    u.pitch = CONFIG.tts.childMode ? 1.35 : 1.0;
     const sv = pickVoice(CONFIG.tts.gender);
-    if (sv) utt.voice = sv;
-
-    utt.onend   = () => { if (callback) callback(); };
-    utt.onerror = () => { if (callback) callback(); };
-    window.speechSynthesis.speak(utt);
+    if (sv) u.voice = sv;
+    u.onend = u.onerror = () => { if (cb) cb(); };
+    window.speechSynthesis.speak(u);
 }
 
-// ── 캐릭터 GIF 자동 전환 ──────────────────────────────────────
-function updateCharacterGif(replyText) {
-    const t = replyText.toLowerCase();
-    const yesW = ['yes, i do', 'i like', 'i love', 'yes!', 'yes,', ' yes ', 'great', 'same', 'of course'];
-    const noW  = ['no, i don', "don't", "doesn't", 'no!', ' no ', 'not like', 'different', "i don't"];
-
-    if (yesW.some(w => t.includes(w)))      characterGif.src = CONFIG.gif.yes;
-    else if (noW.some(w => t.includes(w)))  characterGif.src = CONFIG.gif.no;
-    else                                     characterGif.src = CONFIG.gif.speaking;
+/* ── GIF 전환 ── */
+function setGif(text) {
+    const t = text.toLowerCase();
+    const yes = ['yes, i do','i like','i love','yes!','yes,', ' yes ','great','same','of course'];
+    const no  = ['no, i don',"don't","doesn't",'no!',' no ','not like','different'];
+    if (yes.some(w => t.includes(w)))     charImg.src = CONFIG.gif.yes;
+    else if (no.some(w => t.includes(w))) charImg.src = CONFIG.gif.no;
+    else                                   charImg.src = CONFIG.gif.speaking;
 }
 
-// ── 로그인 ───────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('login-submit-btn').onclick = () => {
-        const val = document.getElementById('student-name-input').value.trim();
-        if (!val) { alert('번호와 이름을 입력해주세요! 😊'); return; }
-        studentInfo = val;
-        document.getElementById('login-overlay').style.display = 'none';
-        // ✅ 로그인 완료 즉시 대화 자동 시작
-        setTimeout(() => startApp(), 300);
-    };
-});
+/* ── 로그인 ── */
+document.getElementById('login-btn').onclick = () => {
+    const val = document.getElementById('name-input').value.trim();
+    if (!val) { alert('번호와 이름을 입력해주세요!'); return; }
+    studentInfo = val;
+    document.getElementById('login').style.display = 'none';
+    setTimeout(startApp, 300);
+};
 
-// ── 앱 시작 ─────────────────────────────────────────────────
+/* ── 앱 시작 ── */
 function startApp() {
-    micBtn.style.display   = 'block';
+    // 마이크 활성화
+    mic.classList.add('active');
     window.speechSynthesis.cancel();
     stage = 'await_greeting';
-    characterGif.src = CONFIG.gif.greeting;
+    charImg.src = CONFIG.gif.greeting;
 
     setTimeout(() => {
-        const opening = CONFIG.openingLine;
-        addChatMessage('luca', opening);
-        conversationHistory.push({ role: 'assistant', content: opening });
-        speak(opening, () => {
+        const line = CONFIG.openingLine;
+        addMsg('luca', line);
+        conversationHistory.push({ role: 'assistant', content: line });
+        speak(line, () => {
             hint.innerText = '🎙️ 버튼을 누르고 대답해보세요!';
-            setTimeout(() => showKoreanPopup(`${CONFIG.characterName}에게 영어로 인사를 해보세요!`), 200);
+            setTimeout(() => showPopup(`${CONFIG.characterName}에게 영어로 인사를 해보세요!`), 200);
         });
-    }, 300);
+    }, 400);
 }
 
-// ── 힌트 팝업 ────────────────────────────────────────────────
-function showKoreanPopup(text) {
+/* ── 팝업 ── */
+function showPopup(text) {
     clearTimeout(popupTimer);
-    koreanPopup.innerText = '📢 ' + text;
-    koreanPopup.classList.add('show');
+    popup.innerText = '📢 ' + text;
+    popup.classList.add('show');
 }
-function hideKoreanPopup() {
-    clearTimeout(popupTimer);
-    koreanPopup.classList.remove('show');
-}
-function scheduleHidePopup(delay = 500) {
-    clearTimeout(popupTimer);
-    popupTimer = setTimeout(hideKoreanPopup, delay);
-}
+function hidePopup() { clearTimeout(popupTimer); popup.classList.remove('show'); }
+function scheduleHide(d=500) { clearTimeout(popupTimer); popupTimer = setTimeout(hidePopup, d); }
 
-// ── 채팅 메시지 — 루카는 국기 아이콘 포함 ───────────────────
-function addChatMessage(sender, text) {
-    let t = text.trim();
-    if (sender === 'user' && t.length > 0)
-        t = t.charAt(0).toUpperCase() + t.slice(1);
+/* ── 메시지 추가 ── */
+function addMsg(sender, text) {
+    const t = (sender === 'user' && text.length > 0)
+        ? text.charAt(0).toUpperCase() + text.slice(1)
+        : text.trim();
+
+    const row = document.createElement('div');
+    row.classList.add('row', sender === 'luca' ? 'luca-row' : 'user-row');
 
     if (sender === 'luca') {
-        // 루카: 국기 아이콘 + 말풍선
-        const row = document.createElement('div');
-        row.classList.add('msg-row', 'luca-row');
-
-        const flag = document.createElement('img');
-        flag.src = CONFIG.flagImg;
-        flag.className = 'msg-flag';
-        flag.alt = 'flag';
-
-        const bubble = document.createElement('div');
-        bubble.classList.add('msg', 'luca');
-        bubble.innerText = t;
-
-        row.appendChild(flag);
-        row.appendChild(bubble);
-        chatHistory.appendChild(row);
+        const fl = document.createElement('img');
+        fl.src = CONFIG.flagImg; fl.className = 'msg-flag'; fl.alt = '';
+        const bbl = document.createElement('div');
+        bbl.classList.add('msg', 'luca'); bbl.innerText = t;
+        row.append(fl, bbl);
     } else {
-        // 학생: 우측 말풍선
-        const row = document.createElement('div');
-        row.classList.add('msg-row', 'user-row');
-
-        const bubble = document.createElement('div');
-        bubble.classList.add('msg', 'user');
-        bubble.innerText = t;
-
-        row.appendChild(bubble);
-        chatHistory.appendChild(row);
+        const bbl = document.createElement('div');
+        bbl.classList.add('msg', 'user'); bbl.innerText = t;
+        row.append(bbl);
     }
-
-    requestAnimationFrame(() => {
-        chatHistory.scrollTop = chatHistory.scrollHeight;
-    });
+    chat.appendChild(row);
+    requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; });
 }
 
-// ── 폭죽 ────────────────────────────────────────────────────
-function launchFireworks() {
-    const colors = ['#FF4136','#FF851B','#FFDC00','#2ECC40','#0074D9','#B10DC9','#FF69B4','#fff'];
-    const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
-    for (let i = 0; i < 130; i++) {
-        const s = document.createElement('div');
-        s.classList.add('spark');
-        const a = Math.random() * Math.PI * 2, d = 100 + Math.random() * 300;
-        s.style.cssText = `left:${cx}px;top:${cy}px;
-            width:${6+Math.random()*10}px;height:${6+Math.random()*10}px;
-            background:${colors[Math.floor(Math.random()*colors.length)]};
-            --tx:${Math.cos(a)*d}px;--ty:${Math.sin(a)*d}px;
-            animation-delay:${Math.random()*0.4}s;
-            animation-duration:${0.9+Math.random()*0.6}s;`;
-        document.body.appendChild(s);
-        setTimeout(() => s.remove(), 2200);
+/* ── 폭죽 ── */
+function burst(x, y, n, dist) {
+    const cl = ['#FF4136','#FF851B','#FFDC00','#2ECC40','#0074D9','#B10DC9','#FF69B4','#fff'];
+    for (let i = 0; i < n; i++) {
+        const s = document.createElement('div'); s.classList.add('spark');
+        const a = Math.random()*Math.PI*2, d = dist*0.4 + Math.random()*dist;
+        s.style.cssText = `left:${x}px;top:${y}px;width:${5+Math.random()*9}px;height:${5+Math.random()*9}px;background:${cl[Math.floor(Math.random()*cl.length)]};--tx:${Math.cos(a)*d}px;--ty:${Math.sin(a)*d}px;animation-delay:${Math.random()*0.4}s;animation-duration:${0.9+Math.random()*0.5}s;`;
+        document.body.appendChild(s); setTimeout(()=>s.remove(),2000);
     }
-    [[cx*0.35,cy*0.55],[cx*1.65,cy*0.5],[cx,cy*1.35]].forEach(([x,y],i) => {
-        setTimeout(() => {
-            for (let j = 0; j < 60; j++) {
-                const s = document.createElement('div');
-                s.classList.add('spark');
-                const a = Math.random()*Math.PI*2, d = 60+Math.random()*170;
-                s.style.cssText = `left:${x}px;top:${y}px;
-                    width:${5+Math.random()*8}px;height:${5+Math.random()*8}px;
-                    background:${colors[Math.floor(Math.random()*colors.length)]};
-                    --tx:${Math.cos(a)*d}px;--ty:${Math.sin(a)*d}px;
-                    animation-delay:${Math.random()*0.3}s;
-                    animation-duration:${0.8+Math.random()*0.5}s;`;
-                document.body.appendChild(s);
-                setTimeout(() => s.remove(), 2200);
-            }
-        }, (i+1)*400);
-    });
+}
+function fireworks() {
+    const cx = innerWidth/2, cy = innerHeight/2;
+    burst(cx,cy,130,280);
+    [[cx*.35,cy*.55],[cx*1.65,cy*.5],[cx,cy*1.35]].forEach(([x,y],i)=>setTimeout(()=>burst(x,y,60,160),(i+1)*400));
 }
 function showFinale() {
-    characterGif.src = CONFIG.gif.greeting;
-    [0, 800, 1600].forEach(d => setTimeout(launchFireworks, d));
-    setTimeout(() => finaleOverlay.classList.add('show'), 600);
+    charImg.src = CONFIG.gif.greeting;
+    [0,800,1600].forEach(d=>setTimeout(fireworks,d));
+    setTimeout(()=>finale.classList.add('show'),600);
 }
 
-// ── 백엔드 API 호출 ──────────────────────────────────────────
-async function handleConversation(userInput) {
-    scheduleHidePopup(400);
-    conversationHistory.push({ role: 'user', content: userInput });
-
+/* ── API 호출 ── */
+async function talk(input) {
+    scheduleHide(400);
+    conversationHistory.push({ role:'user', content:input });
     try {
         const res  = await fetch('/api/chat', {
-            method : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body   : JSON.stringify({
-                student: studentInfo,
-                message: userInput,
-                history: conversationHistory,
-                stage  : stage,
-            })
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ student:studentInfo, message:input, history:conversationHistory, stage })
         });
         const data = await res.json();
-
-        conversationHistory.push({ role: 'assistant', content: data.reply });
+        conversationHistory.push({ role:'assistant', content:data.reply });
         if (data.stage) stage = data.stage;
-
-        // 캐릭터 GIF 즉시 전환
-        updateCharacterGif(data.reply);
-        addChatMessage('luca', data.reply);
-
-        const pendingPopup = data.popup || null;
-
+        setGif(data.reply);
+        addMsg('luca', data.reply);
+        const pp = data.popup || null;
         if (data.fireworks) {
-            hideKoreanPopup();
-            speak(data.reply, () => {
-                hint.innerText = '수고했어요! 🎉';
-                micBtn.style.display = 'none';
-                showFinale();
-            });
+            hidePopup();
+            speak(data.reply, () => { hint.innerText='수고했어요! 🎉'; mic.style.display='none'; showFinale(); });
         } else {
             speak(data.reply, () => {
                 hint.innerText = '🎙️ 버튼을 누르고 대답해보세요!';
-                // TTS 끝난 후 200ms 뒤 팝업 표시
-                if (pendingPopup) {
-                    setTimeout(() => showKoreanPopup(pendingPopup), 200);
-                } else {
-                    hideKoreanPopup();
-                }
+                pp ? setTimeout(()=>showPopup(pp),200) : hidePopup();
             });
         }
-
-    } catch (err) {
-        console.error('백엔드 연결 실패:', err);
-        addChatMessage('luca', "Sorry, I missed that. Can you say it again?");
+    } catch(e) {
+        addMsg('luca',"Sorry, I missed that. Can you say it again?");
         speak("Sorry, I missed that.");
     }
 }
 
-// ── 음성 인식 ────────────────────────────────────────────────
+/* ── STT ── */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (SR) {
-    const recognition = new SR();
-    recognition.lang            = 'en-US';
-    recognition.interimResults  = false;
-    recognition.maxAlternatives = 1;
-
-    micBtn.onclick = () => {
-        try { recognition.start(); } catch(e) {}
-        micBtn.classList.add('recording');
+    const rec = new SR();
+    rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1;
+    mic.onclick = () => {
+        if (!mic.classList.contains('active')) return;
+        try { rec.start(); } catch(e) {}
+        mic.classList.add('recording');
         hint.innerText = 'Listening... 👂 (듣고 있어요)';
     };
-    recognition.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        addChatMessage('user', transcript);
-        handleConversation(transcript);
+    rec.onresult = e => {
+        const t = e.results[0][0].transcript;
+        addMsg('user', t); talk(t);
     };
-    recognition.onend   = () => micBtn.classList.remove('recording');
-    recognition.onerror = () => micBtn.classList.remove('recording');
+    rec.onend   = () => mic.classList.remove('recording');
+    rec.onerror = () => mic.classList.remove('recording');
 } else {
     alert('크롬 브라우저를 사용해주세요!');
 }
