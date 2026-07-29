@@ -23,8 +23,9 @@ CHARACTER_COUNTRY = "Italy"       # 예: Italy, UK, USA, France 등
 CHARACTER_AGE     = 10
 CHARACTER_GENDER  = "boy"
 
-SPREADSHEET_TITLE = "vibecoding-chatbot"  # 구글 시트 파일 이름
-SHEET_TAB         = "Italy"              # 8개국 중 사용할 탭 이름 (예: Italy, UK 등)
+# 구글 시트 URL의 고유 ID로 지정하여 Google Drive API 403 에러 방지
+SPREADSHEET_ID    = "1D1xcyBiIOtBE3QfrPMx84RVIREf-8kq5XDqTZWCrDMU"
+SHEET_TAB         = "Italy"       # 8개국 중 사용할 탭 이름
 
 # ═══════════════════════════════════════════════════════════════
 # 🔑 OpenAI API 설정 (gpt-4o-mini)
@@ -39,7 +40,7 @@ else:
     print("⚠️  OPENAI_API_KEY 없음")
 
 # ─────────────────────────────────────────────────────────────
-# 📊 구글 스프레드시트 연동
+# 📊 구글 스프레드시트 연동 (open_by_key 기반)
 # ─────────────────────────────────────────────────────────────
 sheet = None
 try:
@@ -58,7 +59,8 @@ try:
         creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
         gc = gspread.authorize(creds)
 
-        spreadsheet = gc.open(SPREADSHEET_TITLE)
+        # 제목 검색 대신 ID로 직접 열기 (Drive API 권한 문제 완전 우회)
+        spreadsheet = gc.open_by_key(SPREADSHEET_ID)
 
         try:
             sheet = spreadsheet.worksheet(SHEET_TAB)
@@ -68,7 +70,7 @@ try:
             sheet.append_row(["시간", "학생정보", "학생발화", "루카응답", "단계", "나라"])
             print(f"✅ 새 탭 생성 성공: [{SHEET_TAB}]")
 
-        print(f"🎉 구글 시트 연동 성공 → 파일: [{SPREADSHEET_TITLE}] / 탭: [{SHEET_TAB}]")
+        print(f"🎉 구글 시트 연동 성공 → ID: [{SPREADSHEET_ID}] / 탭: [{SHEET_TAB}]")
 
 except Exception as e:
     print(f"❌ 구글 시트 연동 실패: {e}")
@@ -186,7 +188,6 @@ def call_openai(history_messages, max_tokens=200):
     except Exception as e:
         print(f"❌ OpenAI API 호출 에러 발생: {e}")
         traceback.print_exc()
-        # 오류 발생 시 지정된 정손된 대사 반환
         return "Oh, I'm tired. I need some rest."
 
 def detect_stage(user_message, current_stage, session_data):
@@ -344,8 +345,8 @@ def _respond(reply, popup, next_stage, fireworks, student_info, user_message, hi
         except Exception as e:
             print(f"❌ 시트 저장 실패: {e}")
             traceback.print_exc()
-    else:
-        print("⚠️  구글 시트 미연결 상태 - 로그 저장 생략")
+        else:
+            print("⚠️  구글 시트 미연결 상태 - 로그 저장 생략")
 
     return jsonify({
         'reply'    : reply,
