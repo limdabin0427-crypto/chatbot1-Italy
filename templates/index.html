@@ -51,7 +51,7 @@
         }
 
         /* ══════════════════════════════════════════════════
-           전체 컨테이너 — 상단 60% / 하단 40% 분할
+           전체 컨테이너 — 상단 50% / 하단 50% 분할
         ══════════════════════════════════════════════════ */
         #app-container {
             width: 100vw;
@@ -87,7 +87,7 @@
         ══════════════════════════════════════════════════ */
         #top-section {
             position: relative;
-            flex: 0 0 60%;
+            flex: 0 0 50%;
             z-index: 5;
             display: flex;
             flex-direction: column;
@@ -176,7 +176,7 @@
         ══════════════════════════════════════════════════ */
         #bottom-section {
             position: relative;
-            flex: 0 0 40%;
+            flex: 0 0 50%;
             z-index: 15;
             display: flex;
             flex-direction: column;
@@ -323,16 +323,7 @@
             0%{transform:scale(1)} 50%{transform:scale(1.09)} 100%{transform:scale(1)}
         }
 
-        /* 시작 버튼 */
-        #start-btn {
-            padding: 12px 44px;
-            font-size: clamp(15px, 4vw, 17px);
-            font-weight: 700;
-            background: linear-gradient(135deg, #00b09b, #96c93d);
-            color: #fff; border: none; border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 5px 16px rgba(0,176,155,0.45);
-        }
+
 
         /* ══════════════════════════════════════════════════
            피날레
@@ -461,8 +452,7 @@
         <!-- 컨트롤 영역 -->
         <div id="bottom-controls">
             <div id="korean-popup"></div>
-            <div id="hint">Let's chat!</div>
-            <button id="start-btn" onclick="startApp()">START ▶</button>
+            <div id="hint">잠시만 기다려주세요...</div>
             <button id="mic-btn">🎙️</button>
         </div>
 
@@ -499,7 +489,6 @@ const liveBubble    = document.getElementById('live-bubble');
 const koreanPopup   = document.getElementById('korean-popup');
 const chatHistory   = document.getElementById('chat-history');
 const hint          = document.getElementById('hint');
-const startBtn      = document.getElementById('start-btn');
 const micBtn        = document.getElementById('mic-btn');
 const finaleOverlay = document.getElementById('finale-overlay');
 const characterGif  = document.getElementById('character-gif');
@@ -572,12 +561,13 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!val) { alert('번호와 이름을 입력해주세요! 😊'); return; }
         studentInfo = val;
         document.getElementById('login-overlay').style.display = 'none';
+        // ✅ 로그인 완료 즉시 대화 자동 시작
+        setTimeout(() => startApp(), 300);
     };
 });
 
 // ── 앱 시작 ─────────────────────────────────────────────────
 function startApp() {
-    startBtn.style.display = 'none';
     micBtn.style.display   = 'block';
     window.speechSynthesis.cancel();
     stage = 'await_greeting';
