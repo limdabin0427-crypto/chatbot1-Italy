@@ -8,53 +8,46 @@ from flask import Flask, render_template, request, jsonify, session
 from flask_cors import CORS
 import gspread
 from google.oauth2.service_account import Credentials
-import google.generativeai as genai
+from openai import OpenAI
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.secret_key = os.urandom(24)
 CORS(app)
 
 # ═══════════════════════════════════════════════════════════════
-# ✏️  나라별 챗봇 설정
+# ✏️  나라별 챗봇 & 구글 시트 설정 (여기서 자유롭게 변경)
 # ═══════════════════════════════════════════════════════════════
 
 CHARACTER_NAME    = "Luca"
-CHARACTER_COUNTRY = "Italy"
+CHARACTER_COUNTRY = "Italy"       # 예: Italy, UK, USA, France 등
 CHARACTER_AGE     = 10
 CHARACTER_GENDER  = "boy"
 
-SPREADSHEET_TITLE = "chatbot-Italy"
-SHEET_TAB         = "Italy"
+SPREADSHEET_TITLE = "vibecoding-chatbot"  # 구글 시트 파일 이름
+SHEET_TAB         = "Italy"              # 8개국 중 사용할 탭 이름 (예: Italy, UK 등)
 
 # ═══════════════════════════════════════════════════════════════
-# 🔑 Gemini API 설정 (호환성 최적화)
+# 🔑 OpenAI API 설정 (gpt-4o-mini)
 # ═══════════════════════════════════════════════════════════════
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
-if GEMINI_KEY:
-    genai.configure(api_key=GEMINI_KEY)
+OPENAI_KEY = os.environ.get("OPENAI_API_KEY")
+client = None
+
+if OPENAI_KEY:
+    client = OpenAI(api_key=OPENAI_KEY)
+    print("✅ OpenAI API 클라이언트 설정 완료")
 else:
-    print("⚠️  GEMINI_API_KEY 없음")
-
-def make_model(system_instruction=None):
-    # 'models/' 접두사를 포함하여 404/v1beta 에러 방지
-    kwargs = {"model_name": "models/gemini-1.5-flash"}
-    if system_instruction:
-        kwargs["system_instruction"] = system_instruction
-    return genai.GenerativeModel(**kwargs)
+    print("⚠️  OPENAI_API_KEY 없음")
 
 # ─────────────────────────────────────────────────────────────
-# 📊 구글 스프레드시트 연동 (권한 및 예외 처리 강화)
+# 📊 구글 스프레드시트 연동
 # ─────────────────────────────────────────────────────────────
 sheet = None
 try:
     raw_creds = os.environ.get("GOOGLE_SERVICE_ACCOUNT")
     if not raw_creds:
-        print("⚠️  GOOGLE_SERVICE_ACCOUNT 환경변수가 설정되지 않았습니다.")
+        print("⚠️  GOOGLE_SERVICE_ACCOUNT 환경변수 없음")
     else:
-        # JSON 문자열 안전 파싱
         service_account_info = json.loads(raw_creds)
-        
-        # 서비스 계정 이메일 출력 (구글 시트 공유용 확인)
         client_email = service_account_info.get("client_email")
         print(f"🔑 서비스 계정 이메일: {client_email}")
 
@@ -65,7 +58,6 @@ try:
         creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
         gc = gspread.authorize(creds)
 
-        # 스프레드시트 열기
         spreadsheet = gc.open(SPREADSHEET_TITLE)
 
         try:
@@ -79,7 +71,7 @@ try:
         print(f"🎉 구글 시트 연동 성공 → 파일: [{SPREADSHEET_TITLE}] / 탭: [{SHEET_TAB}]")
 
 except Exception as e:
-    print(f"❌ 구글 시트 연동 실패 원인: {e}")
+    print(f"❌ 구글 시트 연동 실패: {e}")
     traceback.print_exc()
     sheet = None
 
@@ -159,7 +151,7 @@ After the food exchange is done, ask: "Do you have any other questions?"
 """
 
 # ─────────────────────────────────────────────────────────────
-# 🛠️  유틸리티 및 Gemini 호출
+# 🛠️  OpenAI 호출 및 오류 문구 처리
 # ─────────────────────────────────────────────────────────────
 EMOJI_PATTERN = re.compile(
     "[" "\U0001F1E6-\U0001F1FF" "\U0001F300-\U0001FAFF"
@@ -169,38 +161,33 @@ EMOJI_PATTERN = re.compile(
 def strip_emoji(text):
     return EMOJI_PATTERN.sub('', text or '').strip()
 
-def call_gemini(history_messages, max_tokens=200):
-    if not GEMINI_KEY:
-        return "ERROR: GEMINI_API_KEY 환경변수가 없습니다."
+def call_openai(history_messages, max_tokens=200):
+    if not client:
+        return "Oh, I'm tired. I need some rest."
     try:
-        model = make_model(SYSTEM_PROMPT)
-        config = genai.types.GenerationConfig(
-            max_output_tokens=max_tokens,
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        
+        for msg in history_messages:
+            role = "user" if msg["role"] == "user" else "assistant"
+            messages.append({"role": role, "content": msg["content"]})
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=max_tokens,
             temperature=0.8,
         )
         
-        contents = []
-        for msg in history_messages:
-            role = "user" if msg["role"] == "user" else "model"
-            contents.append({
-                "role": role,
-                "parts": [{"text": msg["content"]}]
-            })
-
-        response = model.generate_content(
-            contents,
-            generation_config=config
-        )
-        
-        raw = strip_emoji(response.text.strip())
+        raw = strip_emoji(response.choices[0].message.content.strip())
         if raw and raw[-1] not in ".!?":
             raw += "."
         return raw
 
     except Exception as e:
-        print(f"❌ Gemini API 호출 에러: {e}")
+        print(f"❌ OpenAI API 호출 에러 발생: {e}")
         traceback.print_exc()
-        return f"API ERROR: {str(e)}"
+        # 오류 발생 시 지정된 정손된 대사 반환
+        return "Oh, I'm tired. I need some rest."
 
 def detect_stage(user_message, current_stage, session_data):
     t = user_message.lower().strip()
@@ -300,8 +287,8 @@ def chat():
     fireworks = False
     popup     = None
 
-    if not GEMINI_KEY:
-        reply = "ERROR: GEMINI_API_KEY가 등록되지 않았습니다."
+    if not OPENAI_KEY:
+        reply = "Oh, I'm tired. I need some rest."
         return _respond(reply, popup, stage, fireworks, student_info, user_message, history)
 
     try:
@@ -328,7 +315,7 @@ def chat():
             "content": user_message + food_context
         })
 
-        reply = call_gemini(history, max_tokens=200)
+        reply = call_openai(history, max_tokens=200)
 
         if not reply:
             reply = "I am a little shy today. Can you say that again?"
@@ -339,7 +326,7 @@ def chat():
     except Exception as e:
         print(f"❌ 에러: {e}")
         traceback.print_exc()
-        reply      = f"SERVER ERROR: {str(e)}"
+        reply      = "Oh, I'm tired. I need some rest."
         next_stage = stage
 
     return _respond(reply, popup, next_stage, fireworks, student_info, user_message, history)
@@ -348,17 +335,17 @@ def _respond(reply, popup, next_stage, fireworks, student_info, user_message, hi
     history.append({"role": "assistant", "content": reply})
     session['chat_history'] = history[-30:]
 
-    # 구글 시트 저장 및 디버깅 로그 출력
+    # 구글 시트 저장
     if sheet is not None:
         try:
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             sheet.append_row([now, student_info, user_message, reply, next_stage, CHARACTER_COUNTRY])
             print(f"📊 시트 로그 저장 성공: {student_info} - {user_message}")
         except Exception as e:
-            print(f"❌ 시트 저장 실패 (API 오류): {e}")
+            print(f"❌ 시트 저장 실패: {e}")
             traceback.print_exc()
     else:
-        print("⚠️  구글 시트 미연결 상태 (sheet is None) - 로그 저장이 생략되었습니다.")
+        print("⚠️  구글 시트 미연결 상태 - 로그 저장 생략")
 
     return jsonify({
         'reply'    : reply,
