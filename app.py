@@ -27,7 +27,7 @@ SPREADSHEET_TITLE = "chatbot-Italy"
 SHEET_TAB         = "Italy"
 
 # ═══════════════════════════════════════════════════════════════
-# 🔑 Gemini API 설정 (가장 표준적인 1.5-flash 적용)
+# 🔑 Gemini API 설정 (호환성 최적화)
 # ═══════════════════════════════════════════════════════════════
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 if GEMINI_KEY:
@@ -36,42 +36,51 @@ else:
     print("⚠️  GEMINI_API_KEY 없음")
 
 def make_model(system_instruction=None):
-    # 가장 구동률이 높고 안정적인 1.5-flash 모델
-    kwargs = {"model_name": "gemini-1.5-flash"}
+    # 'models/' 접두사를 포함하여 404/v1beta 에러 방지
+    kwargs = {"model_name": "models/gemini-1.5-flash"}
     if system_instruction:
         kwargs["system_instruction"] = system_instruction
     return genai.GenerativeModel(**kwargs)
 
 # ─────────────────────────────────────────────────────────────
-# 📊 구글 스프레드시트 연동
+# 📊 구글 스프레드시트 연동 (권한 및 예외 처리 강화)
 # ─────────────────────────────────────────────────────────────
 sheet = None
 try:
     raw_creds = os.environ.get("GOOGLE_SERVICE_ACCOUNT")
     if not raw_creds:
-        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT 환경변수 없음")
-    service_account_info = json.loads(raw_creds)
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive",
-    ]
-    creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
-    gc    = gspread.authorize(creds)
+        print("⚠️  GOOGLE_SERVICE_ACCOUNT 환경변수가 설정되지 않았습니다.")
+    else:
+        # JSON 문자열 안전 파싱
+        service_account_info = json.loads(raw_creds)
+        
+        # 서비스 계정 이메일 출력 (구글 시트 공유용 확인)
+        client_email = service_account_info.get("client_email")
+        print(f"🔑 서비스 계정 이메일: {client_email}")
 
-    spreadsheet = gc.open(SPREADSHEET_TITLE)
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
+        gc = gspread.authorize(creds)
 
-    try:
-        sheet = spreadsheet.worksheet(SHEET_TAB)
-        print(f"✅ 기존 탭 연결: [{SHEET_TAB}]")
-    except gspread.exceptions.WorksheetNotFound:
-        sheet = spreadsheet.add_worksheet(title=SHEET_TAB, rows=1000, cols=6)
-        sheet.append_row(["시간", "학생정보", "학생발화", "루카응답", "단계", "나라"])
-        print(f"✅ 새 탭 생성: [{SHEET_TAB}]")
+        # 스프레드시트 열기
+        spreadsheet = gc.open(SPREADSHEET_TITLE)
 
-    print(f"✅ 구글 시트 연동 성공 → 파일: [{SPREADSHEET_TITLE}] / 탭: [{SHEET_TAB}]")
+        try:
+            sheet = spreadsheet.worksheet(SHEET_TAB)
+            print(f"✅ 기존 탭 연결 성공: [{SHEET_TAB}]")
+        except gspread.exceptions.WorksheetNotFound:
+            sheet = spreadsheet.add_worksheet(title=SHEET_TAB, rows=1000, cols=6)
+            sheet.append_row(["시간", "학생정보", "학생발화", "루카응답", "단계", "나라"])
+            print(f"✅ 새 탭 생성 성공: [{SHEET_TAB}]")
+
+        print(f"🎉 구글 시트 연동 성공 → 파일: [{SPREADSHEET_TITLE}] / 탭: [{SHEET_TAB}]")
 
 except Exception as e:
-    print(f"❌ 구글 시트 연동 실패: {e}")
+    print(f"❌ 구글 시트 연동 실패 원인: {e}")
+    traceback.print_exc()
     sheet = None
 
 # ─────────────────────────────────────────────────────────────
@@ -150,7 +159,7 @@ After the food exchange is done, ask: "Do you have any other questions?"
 """
 
 # ─────────────────────────────────────────────────────────────
-# 🛠️  유틸리티 및 Gemini 호출 (진짜 에러 출력 기능 추가)
+# 🛠️  유틸리티 및 Gemini 호출
 # ─────────────────────────────────────────────────────────────
 EMOJI_PATTERN = re.compile(
     "[" "\U0001F1E6-\U0001F1FF" "\U0001F300-\U0001FAFF"
@@ -161,11 +170,10 @@ def strip_emoji(text):
     return EMOJI_PATTERN.sub('', text or '').strip()
 
 def call_gemini(history_messages, max_tokens=200):
-    # 1) API 키가 비어있는 경우
     if not GEMINI_KEY:
         return "ERROR: GEMINI_API_KEY 환경변수가 없습니다."
     try:
-        model  = make_model(SYSTEM_PROMPT)
+        model = make_model(SYSTEM_PROMPT)
         config = genai.types.GenerationConfig(
             max_output_tokens=max_tokens,
             temperature=0.8,
@@ -190,7 +198,6 @@ def call_gemini(history_messages, max_tokens=200):
         return raw
 
     except Exception as e:
-        # 2) API 호출 시 에러가 나면 챗봇 창에 그대로 원인을 출력해줍니다!
         print(f"❌ Gemini API 호출 에러: {e}")
         traceback.print_exc()
         return f"API ERROR: {str(e)}"
@@ -341,14 +348,17 @@ def _respond(reply, popup, next_stage, fireworks, student_info, user_message, hi
     history.append({"role": "assistant", "content": reply})
     session['chat_history'] = history[-30:]
 
-    if sheet:
+    # 구글 시트 저장 및 디버깅 로그 출력
+    if sheet is not None:
         try:
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             sheet.append_row([now, student_info, user_message, reply, next_stage, CHARACTER_COUNTRY])
+            print(f"📊 시트 로그 저장 성공: {student_info} - {user_message}")
         except Exception as e:
-            print(f"시트 저장 실패: {e}")
+            print(f"❌ 시트 저장 실패 (API 오류): {e}")
+            traceback.print_exc()
     else:
-        print("⚠️  구글 시트 미연결 - 기록 생략")
+        print("⚠️  구글 시트 미연결 상태 (sheet is None) - 로그 저장이 생략되었습니다.")
 
     return jsonify({
         'reply'    : reply,
