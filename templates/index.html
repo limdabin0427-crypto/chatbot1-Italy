@@ -370,10 +370,12 @@ const flagEl    = document.getElementById('flag');
 let voices = [], studentInfo = '', stage = 'await_greeting';
 let conversationHistory = [], popupTimer = null;
 
-/* ── CONFIG 초기화 ── */
-(function init() {
-    // 배경
+/* ── CONFIG 초기화: config.py의 CHATBOT_ID → /api/config → 화면 ── */
+let configReady = false;
+
+function applyConfig() {
     const bg = document.getElementById('bg');
+    bg.innerHTML = '';
     CONFIG.backgrounds.forEach((src, i) => {
         const d = document.createElement('div');
         d.className = 'bg-slide';
@@ -381,11 +383,47 @@ let conversationHistory = [], popupTimer = null;
         d.style.animationDelay  = `${i * 6}s`;
         bg.appendChild(d);
     });
-    flagEl.src   = CONFIG.flagImg;
-    charImg.src  = CONFIG.gif.greeting;
+    flagEl.src = CONFIG.flagImg;
+    flagEl.alt = `${CONFIG.country} flag`;
+    charImg.src = CONFIG.gif.greeting;
+    charImg.alt = CONFIG.characterName;
     document.getElementById('finale-msg').innerText = CONFIG.finaleMsg;
     document.title = `${CONFIG.characterName} - ${CONFIG.country}`;
-})();
+}
+
+async function loadChatbotConfig() {
+    const loginBtn = document.getElementById('login-btn');
+    loginBtn.disabled = true;
+    hint.innerText = '챗봇 설정을 불러오는 중입니다...';
+
+    try {
+        const res = await fetch('/api/config', { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        CONFIG.characterName = data.characterName;
+        CONFIG.country = data.country;
+        CONFIG.gif = data.gif;
+        CONFIG.backgrounds = data.backgrounds;
+        CONFIG.flagImg = data.flagImg;
+        CONFIG.tts = data.tts;
+        CONFIG.openingLine = data.openingLine;
+        CONFIG.finaleMsg = data.finaleMsg;
+
+        applyConfig();
+        configReady = true;
+        hint.innerText = '번호와 이름을 입력해주세요.';
+    } catch (error) {
+        console.error('챗봇 설정 로딩 실패:', error);
+        applyConfig();
+        configReady = true;
+        hint.innerText = '기본 설정으로 시작합니다.';
+    } finally {
+        loginBtn.disabled = false;
+    }
+}
+
+loadChatbotConfig();
 
 /* ── TTS ── */
 function loadVoices() { voices = window.speechSynthesis.getVoices(); }
@@ -432,6 +470,10 @@ function setGif(text) {
 
 /* ── 로그인 ── */
 document.getElementById('login-btn').onclick = () => {
+    if (!configReady) {
+        alert('챗봇 설정을 불러오는 중입니다. 잠시 후 다시 눌러주세요.');
+        return;
+    }
     const val = document.getElementById('name-input').value.trim();
     if (!val) { alert('번호와 이름을 입력해주세요!'); return; }
     studentInfo = val;
@@ -515,13 +557,15 @@ function showFinale() {
 /* ── API 호출 ── */
 async function talk(input) {
     scheduleHide(400);
-    conversationHistory.push({ role:'user', content:input });
     try {
         const res  = await fetch('/api/chat', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ student:studentInfo, message:input, history:conversationHistory, stage })
         });
         const data = await res.json();
+        const shownInput = data.recognized_text || input;
+        addMsg('user', shownInput);
+        conversationHistory.push({ role:'user', content:shownInput });
         conversationHistory.push({ role:'assistant', content:data.reply });
         if (data.stage) stage = data.stage;
         setGif(data.reply);
@@ -555,7 +599,7 @@ if (SR) {
     };
     rec.onresult = e => {
         const t = e.results[0][0].transcript;
-        addMsg('user', t); talk(t);
+        talk(t);
     };
     rec.onend   = () => mic.classList.remove('recording');
     rec.onerror = () => mic.classList.remove('recording');
