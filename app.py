@@ -10,212 +10,175 @@ from flask_cors import CORS
 from google.oauth2.service_account import Credentials
 from openai import OpenAI
 
-from data_loader import ANSWER_PATTERNS, CHARACTERS, FOODS
-from dialogue_manager import make_food_response
+from config import (
+    CHATBOT_ID, ENABLE_GOOGLE_SHEETS, ENDING_EXPRESSIONS, FLASK_SECRET_KEY,
+    GOOGLE_SERVICE_ACCOUNT_ENV, MAX_HISTORY_MESSAGES, MAX_RESPONSE_TOKENS,
+    MODEL_NAME, OPENAI_API_KEY_ENV, SPREADSHEET_ID, Stage, TEMPERATURE,
+)
+from data_loader import CHARACTERS
+from dialogue_manager import compare_food_answers, get_food_answer, make_food_response
 from food_utils import clean_text, find_food
 
-
 app = Flask(__name__, static_folder='.', static_url_path='')
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'italy-chatbot-secret-key')
+app.secret_key = FLASK_SECRET_KEY
 CORS(app)
 
-# ============================================================
-# Italy 챗봇 설정
-# ============================================================
-COUNTRY = 'Italy'
-CHARACTER = CHARACTERS[COUNTRY]
+CHARACTER = CHARACTERS[CHATBOT_ID]
 CHARACTER_NAME = CHARACTER['name']
-CHARACTER_COUNTRY = CHARACTER['country']
-SHEET_TAB = CHARACTER['sheet_tab']
+COUNTRY = CHARACTER['country']
+SHEET_TAB = CHARACTER.get('sheet_tab', CHATBOT_ID)
 ENDING_MESSAGE = CHARACTER['ending_message']
 
-SPREADSHEET_ID = '1D1xcyBiIOtBE3QfrPMx84RVIREf-8kq5XDqTZWCrDMU'
-ANSWER_PATTERN = ANSWER_PATTERNS.get(COUNTRY, ['yes', 'no', 'yes'])
+openai_key = os.environ.get(OPENAI_API_KEY_ENV)
+openai_client = OpenAI(api_key=openai_key) if openai_key else None
 
-# ============================================================
-# OpenAI 설정: 음식 외 자유 질문에만 사용
-# ============================================================
-OPENAI_KEY = os.environ.get('OPENAI_API_KEY')
-openai_client = OpenAI(api_key=OPENAI_KEY) if OPENAI_KEY else None
-
-# ============================================================
-# Google Sheets 연결
-# ============================================================
 sheet = None
-try:
-    raw_creds = os.environ.get('GOOGLE_SERVICE_ACCOUNT')
-    if not raw_creds:
-        print('⚠️ GOOGLE_SERVICE_ACCOUNT 환경변수 없음')
-    else:
-        service_account_info = json.loads(raw_creds)
-        scopes = [
-            'https://www.googleapis.com/auth/spreadsheets',
-            'https://www.googleapis.com/auth/drive',
-        ]
-        creds = Credentials.from_service_account_info(
-            service_account_info,
-            scopes=scopes,
-        )
-        gc = gspread.authorize(creds)
-        spreadsheet = gc.open_by_key(SPREADSHEET_ID)
-
-        try:
-            sheet = spreadsheet.worksheet(SHEET_TAB)
-            print(f'✅ 구글 시트 탭 연결 성공: {SHEET_TAB}')
-        except gspread.exceptions.WorksheetNotFound:
-            sheet = spreadsheet.add_worksheet(
-                title=SHEET_TAB,
-                rows=1000,
-                cols=6,
+if ENABLE_GOOGLE_SHEETS:
+    try:
+        raw_creds = os.environ.get(GOOGLE_SERVICE_ACCOUNT_ENV)
+        if raw_creds:
+            info = json.loads(raw_creds)
+            creds = Credentials.from_service_account_info(
+                info,
+                scopes=[
+                    'https://www.googleapis.com/auth/spreadsheets',
+                    'https://www.googleapis.com/auth/drive',
+                ],
             )
-            sheet.append_row([
-                '시간', '학생정보', '학생발화', '루카응답', '단계', '나라'
-            ])
-            print(f'✅ 구글 시트 탭 생성 성공: {SHEET_TAB}')
-except Exception as error:
-    print(f'❌ 구글 시트 연결 실패: {error}')
-    traceback.print_exc()
-    sheet = None
+            spreadsheet = gspread.authorize(creds).open_by_key(SPREADSHEET_ID)
+            try:
+                sheet = spreadsheet.worksheet(SHEET_TAB)
+            except gspread.exceptions.WorksheetNotFound:
+                sheet = spreadsheet.add_worksheet(title=SHEET_TAB, rows=1000, cols=7)
+                sheet.append_row(['시간','학생정보','학생발화(보정)','원본발화','루카응답','단계','나라'])
+            print(f'✅ 구글 시트 연결: {SHEET_TAB}')
+        else:
+            print('⚠️ GOOGLE_SERVICE_ACCOUNT 환경변수 없음')
+    except Exception as error:
+        print(f'❌ 구글 시트 연결 실패: {error}')
+        traceback.print_exc()
 
 
-POSITIVE_FEELINGS = {
-    'fine', 'happy', 'good', 'great', 'awesome', 'perfect', 'excited',
-    'okay', 'ok', 'wonderful', 'super', 'well', 'best'
-}
-NEGATIVE_FEELINGS = {
-    'bad', 'sad', 'tired', 'sick', 'bored', 'angry', 'sleepy',
-    'hungry', 'terrible', 'so so', 'not good'
-}
-GREETING_WORDS = {
-    'hi', 'hello', 'hey', 'good morning', 'good afternoon',
-    'nice to meet you', '안녕', '하이', '헬로'
-}
-END_PHRASES = {
-    'no', 'no thanks', 'no thank you', 'nothing', 'bye', 'goodbye',
-    '없어요', '없어', '없음', '괜찮아요'
-}
+def normalize_stage(stage):
+    aliases = {
+        'await_greeting': Stage.WAIT_GREETING.value,
+        'WAIT_GREETING': Stage.WAIT_GREETING.value,
+    }
+    return aliases.get(stage, stage or Stage.WAIT_GREETING.value)
 
 
-def contains_phrase(text, phrases):
-    return any(phrase in text for phrase in phrases)
+def extract_name(message):
+    text = message.strip().strip(' .!?')
+    text = re.sub(r'^(my name is|i am|i\'m)\s+', '', text, flags=re.I).strip()
+    return text or 'my friend'
 
 
-def is_end_message(text):
-    cleaned = clean_text(text)
-    return cleaned in END_PHRASES or contains_phrase(cleaned, {
-        'no thanks', 'no thank you', 'goodbye'
-    })
+def is_korea(message):
+    t = clean_text(message)
+    return any(x in t for x in ['korea', 'south korea', '한국', '대한민국'])
+
+
+def is_end_message(message):
+    t = clean_text(message)
+    return any(t == clean_text(x) or clean_text(x) in t for x in ENDING_EXPRESSIONS)
 
 
 def extract_unknown_food(message):
-    """foods.json에 없는 음식도 Do you like ___?에서 꺼낸다."""
-    match = re.search(
-        r'\bdo\s+you\s+like\s+(.+?)(?:\?|\.|!|$)',
-        message,
-        flags=re.IGNORECASE,
-    )
-    if not match:
+    m = re.search(r'\bdo\s+you\s+like\s+(.+?)(?:[?.!]|$)', message, re.I)
+    if not m:
         return None
-
-    food_name = match.group(1).strip(' ,.? !')
-    food_name = re.sub(r'\s+', ' ', food_name)
-    if not food_name:
-        return None
-    return food_name.lower()
+    return re.sub(r'\s+', ' ', m.group(1)).strip(' ,.? !').lower() or None
 
 
 def get_food_name(message):
-    matched_food = find_food(message)
-    if matched_food:
-        return matched_food['display_name']
+    matched = find_food(message)
+    if matched:
+        return matched['display_name']
     return extract_unknown_food(message)
 
 
 def is_food_question(message):
-    cleaned = clean_text(message)
-    return 'do you like' in cleaned and get_food_name(message) is not None
+    return 'do you like' in clean_text(message) and get_food_name(message) is not None
 
 
-def feeling_reply(message):
-    cleaned = clean_text(message)
-    if contains_phrase(cleaned, NEGATIVE_FEELINGS):
-        return "Oh, that's too bad. I hope you feel better. Now, ask me anything!"
-    return "That's great. I'm good too. Now, ask me anything!"
+def normalize_user_message(message):
+    """STT 오인식을 foods.json 별칭으로 보정해 채팅/로그에 돌려준다."""
+    if not is_food_question(message):
+        return message.strip()
+    food = get_food_name(message)
+    return f'Do you like {food}?'
 
 
-def ask_openai_simple(message, history):
-    """세 음식 질문 이후의 간단한 자유 질문에만 사용한다."""
+def parse_yes_no(message):
+    t = clean_text(message)
+    negatives = ["no", "no i dont", "i dont", "dont like", "not really", "싫어", "아니"]
+    positives = ["yes", "yes i do", "i do", "i like", "love", "좋아", "응"]
+    if any(x in t for x in negatives):
+        return 'no'
+    if any(x in t for x in positives):
+        return 'yes'
+    return None
+
+
+def free_chat_reply(message, history):
     if not openai_client:
-        return "That's a good question."
-
-    system_prompt = f"""
-You are {CHARACTER_NAME}, a 10-year-old child from {CHARACTER_COUNTRY}.
-You are talking with Korean third-grade EFL beginners.
-Reply only in very simple English.
-Use one or two short sentences.
-Do not use emojis or Korean.
-Do not ask two questions at once.
+        return "That's a good question. Do you have more questions?"
+    prompt = f"""
+You are {CHARACTER_NAME}, a 10-year-old child from {COUNTRY}.
+Talk to Korean grade-3 beginner English learners.
+Use one or two very short A1-level English sentences.
+Accept simple, imperfect, or mixed Korean-English input.
+Stay on the student's topic, then gently ask: Do you have more questions?
+Do not explain grammar. Do not use emojis.
 """.strip()
-
-    messages = [{'role': 'system', 'content': system_prompt}]
-    for item in history[-8:]:
-        role = item.get('role')
-        content = item.get('content', '')
-        if role in {'user', 'assistant'} and content:
-            messages.append({'role': role, 'content': content})
-    messages.append({'role': 'user', 'content': message})
-
+    messages = [{'role':'system','content':prompt}]
+    messages.extend([
+        x for x in history[-8:]
+        if x.get('role') in {'user','assistant'} and x.get('content')
+    ])
+    messages.append({'role':'user','content':message})
     try:
-        response = openai_client.chat.completions.create(
-            model='gpt-4o-mini',
-            messages=messages,
-            temperature=0.4,
-            max_tokens=80,
+        result = openai_client.chat.completions.create(
+            model=MODEL_NAME, messages=messages, temperature=TEMPERATURE,
+            max_tokens=MAX_RESPONSE_TOKENS,
         )
-        reply = response.choices[0].message.content.strip()
-        reply = re.sub(r'[\U00010000-\U0010ffff]', '', reply).strip()
-        return reply or "That's a good question."
+        reply = result.choices[0].message.content.strip()
+        if 'do you have more questions' not in reply.lower():
+            reply += ' Do you have more questions?'
+        return reply
     except Exception as error:
         print(f'❌ OpenAI 호출 실패: {error}')
-        traceback.print_exc()
-        return "That's a good question."
+        return "That's a good question. Do you have more questions?"
 
 
-def save_log(student_info, user_message, reply, next_stage):
+def save_log(student, corrected, original, reply, stage):
     if sheet is None:
-        print('⚠️ 구글 시트 미연결 상태 - 로그 저장 생략')
         return
-
     try:
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        sheet.append_row([
-            now,
-            student_info,
-            user_message,
-            reply,
-            next_stage,
-            CHARACTER_COUNTRY,
-        ])
-        print(f'📊 시트 로그 저장 성공: {student_info} - {user_message}')
+        # 기존 6열 시트와 새 7열 시트 모두 호환되도록 7개 기록
+        sheet.append_row([now, student, corrected, original, reply, stage, COUNTRY])
     except Exception as error:
         print(f'❌ 시트 저장 실패: {error}')
         traceback.print_exc()
 
 
-def make_response(reply, popup, next_stage, fireworks, student_info, user_message):
+def respond(reply, popup, next_stage, fireworks, student, original, corrected=None):
+    corrected = corrected or original
     history = session.get('chat_history', [])
-    history.append({'role': 'user', 'content': user_message})
-    history.append({'role': 'assistant', 'content': reply})
-    session['chat_history'] = history[-30:]
+    history += [
+        {'role':'user','content':corrected},
+        {'role':'assistant','content':reply},
+    ]
+    session['chat_history'] = history[-MAX_HISTORY_MESSAGES:]
     session.modified = True
-
-    save_log(student_info, user_message, reply, next_stage)
-
+    save_log(student, corrected, original, reply, next_stage)
     return jsonify({
         'reply': reply,
         'popup': popup,
         'stage': next_stage,
         'fireworks': fireworks,
+        'recognized_text': corrected,
     })
 
 
@@ -224,115 +187,136 @@ def home():
     return render_template('index.html')
 
 
+@app.route('/api/config', methods=['GET'])
+def chatbot_config():
+    """현재 config.py의 CHATBOT_ID에 해당하는 화면 설정을 전달한다."""
+    images = CHARACTER.get('images', {})
+    character_images = images.get('character', {})
+    tts = CHARACTER.get('tts', {})
+
+    return jsonify({
+        'chatbotId': CHATBOT_ID,
+        'characterName': CHARACTER_NAME,
+        'country': COUNTRY,
+        'gif': {
+            'greeting': character_images.get('greeting', 'greeting.gif'),
+            'speaking': character_images.get('speaking', 'speaking.gif'),
+            'yes': character_images.get('yes', 'yes.gif'),
+            'no': character_images.get('no', 'no.gif'),
+        },
+        'backgrounds': images.get('backgrounds', []),
+        'flagImg': images.get('flag', ''),
+        'tts': {
+            'gender': tts.get('gender', CHARACTER.get('gender', 'male')),
+            'childMode': tts.get('child_mode', True),
+            'rate': tts.get('rate', 0.85),
+            'pitch': tts.get('pitch', 1.35),
+        },
+        'openingLine': CHARACTER.get(
+            'opening_line',
+            f'Hi! My name is {CHARACTER_NAME}. Nice to meet you.',
+        ),
+        'finaleMsg': CHARACTER.get(
+            'finale_message',
+            "Great job! Let's meet new friends!\n잘했어요! 다른 나라 친구도 만나보세요!",
+        ),
+    })
+
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.get_json(force=True, silent=True) or {}
-    student_info = data.get('student', 'Unknown')
-    user_message = (data.get('message') or '').strip()
-    stage = (data.get('stage') or 'await_greeting').strip()
+    student = data.get('student', 'Unknown')
+    original = (data.get('message') or '').strip()
+    stage = normalize_stage((data.get('stage') or '').strip())
 
-    if not user_message:
-        return make_response(
-            'Please say that again.',
-            '다시 한번 말해보세요.',
-            stage,
-            False,
-            student_info,
-            user_message,
+    if not original:
+        return respond('Please say that again.', '다시 한번 말해보세요.', stage, False, student, original)
+
+    if stage == Stage.WAIT_GREETING.value:
+        session.clear()
+        return respond(
+            f"Hi, I'm {CHARACTER_NAME}. What's your name?",
+            '내 이름을 소개해 보세요.',
+            Stage.WAIT_NAME.value, False, student, original,
         )
 
-    if stage == 'await_greeting':
-        reply = 'Hi! How are you?'
-        return make_response(
-            reply,
-            '지금 기분을 영어로 말해보세요.',
-            'await_feeling',
-            False,
-            student_info,
-            user_message,
+    if stage == Stage.WAIT_NAME.value:
+        name = extract_name(original)
+        session['student_name'] = name
+        return respond(
+            f'Oh! Hello {name}! Nice to meet you. Where are you from?',
+            "'한국'에서 온 것을 표현해 보세요.",
+            Stage.WAIT_COUNTRY.value, False, student, original,
         )
 
-    if stage == 'await_feeling':
-        session['food_question_count'] = 0
-        reply = feeling_reply(user_message)
-        return make_response(
-            reply,
-            'Do you like ___? 문장으로 음식에 대해 물어보세요.',
-            'food_questions',
-            False,
-            student_info,
-            user_message,
-        )
-
-    if stage == 'food_questions':
-        if is_food_question(user_message):
-            food_name = get_food_name(user_message)
-            question_count = int(session.get('food_question_count', 0))
-
-            if question_count < 3:
-                answer = ANSWER_PATTERN[question_count]
-                reply = make_food_response(answer, food_name)
-                question_count += 1
-                session['food_question_count'] = question_count
-                session.modified = True
-
-                if question_count < 3:
-                    popup = f'{question_count + 1}번째 음식 질문을 해보세요.'
-                    next_stage = 'food_questions'
-                else:
-                    reply += ' Do you have any other questions?'
-                    popup = '질문이 더 있으면 말하고, 없으면 No라고 대답하세요.'
-                    next_stage = 'more_questions'
-
-                return make_response(
-                    reply,
-                    popup,
-                    next_stage,
-                    False,
-                    student_info,
-                    user_message,
-                )
-
-        return make_response(
-            'Please ask, "Do you like food?"',
-            'Do you like ___? 문장으로 음식 질문을 해보세요.',
-            'food_questions',
-            False,
-            student_info,
-            user_message,
-        )
-
-    if stage == 'more_questions':
-        if is_end_message(user_message):
-            return make_response(
-                ENDING_MESSAGE,
-                None,
-                'done',
-                True,
-                student_info,
-                user_message,
+    if stage == Stage.WAIT_COUNTRY.value:
+        if not is_korea(original):
+            return respond(
+                'Please say, "I\'m from Korea."',
+                "I'm from Korea. 또는 Korea라고 말해보세요.",
+                Stage.WAIT_COUNTRY.value, False, student, original,
             )
-
-        history = session.get('chat_history', [])
-        reply = ask_openai_simple(user_message, history)
-        reply += ' Do you have any other questions?'
-        return make_response(
-            reply,
-            '질문이 더 있으면 말하고, 없으면 No라고 대답하세요.',
-            'more_questions',
-            False,
-            student_info,
-            user_message,
+        session['food_question_number'] = 0
+        return respond(
+            f"I'm from {COUNTRY}! Now ask me any questions.",
+            f'{CHARACTER_NAME}에게 음식에 관해 궁금한 것을 물어보세요.',
+            Stage.FOOD_Q1.value, False, student, original,
         )
 
-    return make_response(
-        ENDING_MESSAGE,
-        None,
-        'done',
-        True,
-        student_info,
-        user_message,
-    )
+    food_question_stages = {
+        Stage.FOOD_Q1.value: (0, Stage.FOOD_A1.value, '네 또는 아니오로 답해보세요.'),
+        Stage.FOOD_Q2.value: (1, Stage.FOOD_A2.value, '네 또는 아니오로 답해보세요.'),
+        Stage.FOOD_Q3.value: (2, Stage.FOOD_A3.value, '네 또는 아니오로 답해보세요.'),
+    }
+    if stage in food_question_stages:
+        number, next_stage, popup = food_question_stages[stage]
+        if not is_food_question(original):
+            return respond(
+                'Please ask, "Do you like pizza?"',
+                'Do you like ___? 문장으로 물어보세요.',
+                stage, False, student, original,
+            )
+        corrected = normalize_user_message(original)
+        food = get_food_name(corrected)
+        bot_answer = get_food_answer(COUNTRY, number)
+        session['current_food'] = food
+        session['bot_food_answer'] = bot_answer
+        session['food_question_number'] = number
+        return respond(
+            make_food_response(bot_answer, food, ask_back=True),
+            popup, next_stage, False, student, original, corrected,
+        )
+
+    food_answer_stages = {
+        Stage.FOOD_A1.value: (Stage.FOOD_Q2.value, 'Any questions?', f'또, {CHARACTER_NAME}에게 궁금한 것을 물어보세요.'),
+        Stage.FOOD_A2.value: (Stage.FOOD_Q3.value, 'Any other questions?', f'또, {CHARACTER_NAME}에게 궁금한 것을 물어보세요.'),
+        Stage.FOOD_A3.value: (Stage.FREE_CHAT.value, 'Do you have more questions?', f'{CHARACTER_NAME}에게 더 궁금한 것이 있나요? 없다면 No, thank you.라고 말하세요.'),
+    }
+    if stage in food_answer_stages:
+        student_answer = parse_yes_no(original)
+        if student_answer is None:
+            return respond(
+                'Please answer, "Yes, I do" or "No, I don\'t."',
+                '네 또는 아니오로 답해보세요.', stage, False, student, original,
+            )
+        next_stage, ending_question, popup = food_answer_stages[stage]
+        bot_answer = session.get('bot_food_answer', 'yes')
+        reply = compare_food_answers(bot_answer, student_answer, ending_question)
+        return respond(reply, popup, next_stage, False, student, original)
+
+    if stage == Stage.FREE_CHAT.value:
+        if is_end_message(original):
+            return respond(ENDING_MESSAGE, None, Stage.END.value, True, student, original)
+        history = session.get('chat_history', [])
+        reply = free_chat_reply(original, history)
+        return respond(
+            reply,
+            f'{CHARACTER_NAME}에게 더 궁금한 것이 있나요? 없다면 No, thank you.라고 말하세요.',
+            Stage.FREE_CHAT.value, False, student, original,
+        )
+
+    return respond(ENDING_MESSAGE, None, Stage.END.value, True, student, original)
 
 
 if __name__ == '__main__':
