@@ -1,0 +1,71 @@
+{
+  "pizza": [
+    "pizza",
+    "피자",
+    "piza",
+    "피짜"
+  ],
+  "spaghetti": [
+    "spaghetti",
+    "스파게티",
+    "spagetti",
+    "스파게리"
+  ],
+  "hamburger": [
+    "hamburger",
+    "burger",
+    "햄버거",
+    "버거",
+    "hambuger"
+  ],
+  "chicken": [
+    "chicken",
+    "fried chicken",
+    "치킨",
+    "후라이드 치킨",
+    "칙킨"
+  ],
+  "kimchi": [
+    "kimchi",
+    "김치",
+    "kimchee"
+  ],
+  "tteokbokki": [
+    "tteokbokki",
+    "떡볶이",
+    "떡뽁이",
+    "topokki",
+    "tokbokki"
+  ],
+  "malatang": [
+    "malatang",
+    "maratang",
+    "마라탕",
+    "마라 탕"
+  ],
+  "tanghulu": [
+    "tanghulu",
+    "tanghuru",
+    "탕후루",
+    "탕후루우"
+  ],
+  "kimbap": [
+    "kimbap",
+    "gimbap",
+    "김밥"
+  ],
+  "bibimbap": [
+    "bibimbap",
+    "비빔밥",
+    "비빔밥이"
+  ],
+  "bulgogi": [
+    "bulgogi",
+    "불고기"
+  ],
+  "macaron": [
+    "macaron",
+    "macaroon",
+    "마카롱"
+  ]
+}
