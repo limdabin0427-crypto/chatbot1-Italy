@@ -1,0 +1,25 @@
+{
+  "Italy": [
+    "yes",
+    "no",
+    "yes"
+  ],
+
+  "America": [
+    "yes",
+    "no",
+    "yes"
+  ],
+
+  "Mexico": [
+    "yes",
+    "no",
+    "yes"
+  ],
+
+  "Hawaii": [
+    "yes",
+    "no",
+    "yes"
+  ]
+}
