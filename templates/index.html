@@ -363,6 +363,8 @@ const popup     = document.getElementById('popup');
 const chat      = document.getElementById('chat');
 const hint      = document.getElementById('hint');
 const mic       = document.getElementById('mic');
+let recognition = null;
+let isBotSpeaking = false;
 const finale    = document.getElementById('finale');
 const charImg   = document.getElementById('char-img');
 const flagEl    = document.getElementById('flag');
@@ -444,6 +446,13 @@ function pickVoice(gender) {
 }
 
 function speak(text, cb) {
+    // 챗봇 음성이 학생 답변으로 다시 인식되지 않도록 발화 중 마이크를 잠근다.
+    isBotSpeaking = true;
+    mic.classList.remove('active', 'recording');
+    if (recognition) {
+        try { recognition.abort(); } catch(e) {}
+    }
+
     window.speechSynthesis.cancel();
     bubble.innerText = text;
     bubble.style.display = 'block';
@@ -454,7 +463,23 @@ function speak(text, cb) {
     u.pitch = CONFIG.tts.childMode ? 1.35 : 1.0;
     const sv = pickVoice(CONFIG.tts.gender);
     if (sv) u.voice = sv;
-    u.onend = u.onerror = () => { if (cb) cb(); };
+
+    let finished = false;
+    const finishSpeaking = () => {
+        if (finished) return;
+        finished = true;
+        // 스피커 잔향까지 마이크가 잡지 않도록 아주 짧게 기다린 뒤 다시 활성화한다.
+        setTimeout(() => {
+            isBotSpeaking = false;
+            if (stage !== 'end' && mic.style.display !== 'none') {
+                mic.classList.add('active');
+            }
+            if (cb) cb();
+        }, 450);
+    };
+
+    u.onend = finishSpeaking;
+    u.onerror = finishSpeaking;
     window.speechSynthesis.speak(u);
 }
 
@@ -589,20 +614,22 @@ async function talk(input) {
 /* ── STT ── */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (SR) {
-    const rec = new SR();
-    rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1;
+    recognition = new SR();
+    recognition.lang = 'en-US'; recognition.interimResults = false; recognition.maxAlternatives = 1;
     mic.onclick = () => {
+        // 챗봇이 말하는 동안에는 마이크가 절대 시작되지 않는다.
+        if (isBotSpeaking || window.speechSynthesis.speaking) return;
         if (!mic.classList.contains('active')) return;
-        try { rec.start(); } catch(e) {}
+        try { recognition.start(); } catch(e) { return; }
         mic.classList.add('recording');
         hint.innerText = 'Listening... 👂 (듣고 있어요)';
     };
-    rec.onresult = e => {
+    recognition.onresult = e => {
         const t = e.results[0][0].transcript;
         talk(t);
     };
-    rec.onend   = () => mic.classList.remove('recording');
-    rec.onerror = () => mic.classList.remove('recording');
+    recognition.onend   = () => mic.classList.remove('recording');
+    recognition.onerror = () => mic.classList.remove('recording');
 } else {
     alert('크롬 브라우저를 사용해주세요!');
 }
