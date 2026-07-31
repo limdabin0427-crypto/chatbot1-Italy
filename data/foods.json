@@ -1,71 +1,416 @@
 {
-  "pizza": [
-    "pizza",
-    "피자",
-    "piza",
-    "피짜"
-  ],
-  "spaghetti": [
-    "spaghetti",
-    "스파게티",
-    "spagetti",
-    "스파게리"
-  ],
-  "hamburger": [
-    "hamburger",
-    "burger",
-    "햄버거",
-    "버거",
-    "hambuger"
-  ],
-  "chicken": [
-    "chicken",
-    "fried chicken",
-    "치킨",
-    "후라이드 치킨",
-    "칙킨"
-  ],
-  "kimchi": [
-    "kimchi",
-    "김치",
-    "kimchee"
-  ],
-  "tteokbokki": [
-    "tteokbokki",
-    "떡볶이",
-    "떡뽁이",
-    "topokki",
-    "tokbokki"
-  ],
-  "malatang": [
-    "malatang",
-    "maratang",
-    "마라탕",
-    "마라 탕"
-  ],
-  "tanghulu": [
-    "tanghulu",
-    "tanghuru",
-    "탕후루",
-    "탕후루우"
-  ],
-  "kimbap": [
-    "kimbap",
-    "gimbap",
-    "김밥"
-  ],
-  "bibimbap": [
-    "bibimbap",
-    "비빔밥",
-    "비빔밥이"
-  ],
-  "bulgogi": [
-    "bulgogi",
-    "불고기"
-  ],
-  "macaron": [
-    "macaron",
-    "macaroon",
-    "마카롱"
-  ]
+  "pizza": {
+    "display_name": "pizza",
+    "aliases": [
+      "pizza",
+      "piza",
+      "pissa",
+      "피자",
+      "피짜"
+    ]
+  },
+
+  "pasta": {
+    "display_name": "pasta",
+    "aliases": [
+      "pasta",
+      "파스타"
+    ]
+  },
+
+  "spaghetti": {
+    "display_name": "spaghetti",
+    "aliases": [
+      "spaghetti",
+      "spagetti",
+      "spagheti",
+      "스파게티",
+      "스파게리"
+    ]
+  },
+
+  "hamburger": {
+    "display_name": "hamburgers",
+    "aliases": [
+      "hamburger",
+      "hamburgers",
+      "burger",
+      "burgers",
+      "hamberger",
+      "햄버거",
+      "함버거"
+    ]
+  },
+
+  "taco": {
+    "display_name": "tacos",
+    "aliases": [
+      "taco",
+      "tacos",
+      "타코",
+      "타코스"
+    ]
+  },
+
+  "ice_cream": {
+    "display_name": "ice cream",
+    "aliases": [
+      "ice cream",
+      "icecream",
+      "ice creams",
+      "아이스크림",
+      "아이스 크림"
+    ]
+  },
+
+  "sandwich": {
+    "display_name": "sandwiches",
+    "aliases": [
+      "sandwich",
+      "sandwiches",
+      "sandwitch",
+      "샌드위치",
+      "샌드위취"
+    ]
+  },
+
+  "sushi": {
+    "display_name": "sushi",
+    "aliases": [
+      "sushi",
+      "수시",
+      "스시",
+      "초밥"
+    ]
+  },
+
+  "ramen": {
+    "display_name": "ramen",
+    "aliases": [
+      "ramen",
+      "ramyun",
+      "ramyeon",
+      "라면",
+      "라멘"
+    ]
+  },
+
+  "noodles": {
+    "display_name": "noodles",
+    "aliases": [
+      "noodle",
+      "noodles",
+      "누들",
+      "누들스",
+      "국수"
+    ]
+  },
+
+  "rice": {
+    "display_name": "rice",
+    "aliases": [
+      "rice",
+      "라이스",
+      "밥"
+    ]
+  },
+
+  "fried_rice": {
+    "display_name": "fried rice",
+    "aliases": [
+      "fried rice",
+      "friedrice",
+      "프라이드 라이스",
+      "볶음밥"
+    ]
+  },
+
+  "kimchi": {
+    "display_name": "kimchi",
+    "aliases": [
+      "kimchi",
+      "kimchee",
+      "김치"
+    ]
+  },
+
+  "bread": {
+    "display_name": "bread",
+    "aliases": [
+      "bread",
+      "breads",
+      "브레드",
+      "빵"
+    ]
+  },
+
+  "cake": {
+    "display_name": "cake",
+    "aliases": [
+      "cake",
+      "cakes",
+      "케이크"
+    ]
+  },
+
+  "cookie": {
+    "display_name": "cookies",
+    "aliases": [
+      "cookie",
+      "cookies",
+      "cooky",
+      "쿠키"
+    ]
+  },
+
+  "chocolate": {
+    "display_name": "chocolate",
+    "aliases": [
+      "chocolate",
+      "chocolates",
+      "chocorate",
+      "초콜릿",
+      "초코렛",
+      "초콜레이트"
+    ]
+  },
+
+  "candy": {
+    "display_name": "candy",
+    "aliases": [
+      "candy",
+      "candies",
+      "캔디",
+      "사탕"
+    ]
+  },
+
+  "apple": {
+    "display_name": "apples",
+    "aliases": [
+      "apple",
+      "apples",
+      "애플",
+      "사과"
+    ]
+  },
+
+  "banana": {
+    "display_name": "bananas",
+    "aliases": [
+      "banana",
+      "bananas",
+      "바나나"
+    ]
+  },
+
+  "orange": {
+    "display_name": "oranges",
+    "aliases": [
+      "orange",
+      "oranges",
+      "오렌지"
+    ]
+  },
+
+  "grape": {
+    "display_name": "grapes",
+    "aliases": [
+      "grape",
+      "grapes",
+      "그레이프",
+      "포도"
+    ]
+  },
+
+  "strawberry": {
+    "display_name": "strawberries",
+    "aliases": [
+      "strawberry",
+      "strawberries",
+      "스트로베리",
+      "딸기"
+    ]
+  },
+
+  "watermelon": {
+    "display_name": "watermelon",
+    "aliases": [
+      "watermelon",
+      "water melon",
+      "워터멜론",
+      "수박"
+    ]
+  },
+
+  "chicken": {
+    "display_name": "chicken",
+    "aliases": [
+      "chicken",
+      "chickens",
+      "치킨",
+      "닭고기"
+    ]
+  },
+
+  "fried_chicken": {
+    "display_name": "fried chicken",
+    "aliases": [
+      "fried chicken",
+      "friedchicken",
+      "프라이드 치킨",
+      "후라이드 치킨"
+    ]
+  },
+
+  "fish": {
+    "display_name": "fish",
+    "aliases": [
+      "fish",
+      "fishes",
+      "피쉬",
+      "생선"
+    ]
+  },
+
+  "egg": {
+    "display_name": "eggs",
+    "aliases": [
+      "egg",
+      "eggs",
+      "에그",
+      "달걀",
+      "계란"
+    ]
+  },
+
+  "cheese": {
+    "display_name": "cheese",
+    "aliases": [
+      "cheese",
+      "치즈"
+    ]
+  },
+
+  "salad": {
+    "display_name": "salad",
+    "aliases": [
+      "salad",
+      "salads",
+      "샐러드"
+    ]
+  },
+
+  "soup": {
+    "display_name": "soup",
+    "aliases": [
+      "soup",
+      "soups",
+      "수프",
+      "스프"
+    ]
+  },
+
+  "milk": {
+    "display_name": "milk",
+    "aliases": [
+      "milk",
+      "밀크",
+      "우유"
+    ]
+  },
+
+  "juice": {
+    "display_name": "juice",
+    "aliases": [
+      "juice",
+      "juices",
+      "주스",
+      "쥬스"
+    ]
+  },
+
+  "hot_dog": {
+    "display_name": "hot dogs",
+    "aliases": [
+      "hot dog",
+      "hot dogs",
+      "hotdog",
+      "hotdogs",
+      "핫도그"
+    ]
+  },
+
+  "french_fries": {
+    "display_name": "French fries",
+    "aliases": [
+      "french fries",
+      "french fry",
+      "fries",
+      "chips",
+      "프렌치프라이",
+      "프렌치 프라이",
+      "감자튀김"
+    ]
+  },
+
+  "malatang": {
+    "display_name": "malatang",
+    "aliases": [
+      "malatang",
+      "mala tang",
+      "마라탕"
+    ]
+  },
+
+  "pho": {
+    "display_name": "pho",
+    "aliases": [
+      "pho",
+      "pho noodles",
+      "포",
+      "쌀국수"
+    ]
+  },
+
+  "tanghulu": {
+    "display_name": "tanghulu",
+    "aliases": [
+      "tanghulu",
+      "tang hulu",
+      "tanghuru",
+      "tang huru",
+      "탕후루"
+    ]
+  },
+
+  "tteokbokki": {
+    "display_name": "tteokbokki",
+    "aliases": [
+      "tteokbokki",
+      "tteok bokki",
+      "tteok-bokki",
+      "topokki",
+      "떡볶이"
+    ]
+  },
+
+  "gimbap": {
+    "display_name": "gimbap",
+    "aliases": [
+      "gimbap",
+      "kimbap",
+      "kim bap",
+      "김밥"
+    ]
+  },
+
+  "bulgogi": {
+    "display_name": "bulgogi",
+    "aliases": [
+      "bulgogi",
+      "bul go gi",
+      "불고기"
+    ]
+  }
 }
