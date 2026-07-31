@@ -9,7 +9,6 @@
       "피짜"
     ]
   },
-
   "pasta": {
     "display_name": "pasta",
     "aliases": [
@@ -17,7 +16,6 @@
       "파스타"
     ]
   },
-
   "spaghetti": {
     "display_name": "spaghetti",
     "aliases": [
@@ -28,7 +26,6 @@
       "스파게리"
     ]
   },
-
   "hamburger": {
     "display_name": "hamburgers",
     "aliases": [
@@ -41,7 +38,6 @@
       "함버거"
     ]
   },
-
   "taco": {
     "display_name": "tacos",
     "aliases": [
@@ -51,7 +47,6 @@
       "타코스"
     ]
   },
-
   "ice_cream": {
     "display_name": "ice cream",
     "aliases": [
@@ -62,7 +57,6 @@
       "아이스 크림"
     ]
   },
-
   "sandwich": {
     "display_name": "sandwiches",
     "aliases": [
@@ -73,7 +67,6 @@
       "샌드위취"
     ]
   },
-
   "sushi": {
     "display_name": "sushi",
     "aliases": [
@@ -83,7 +76,6 @@
       "초밥"
     ]
   },
-
   "ramen": {
     "display_name": "ramen",
     "aliases": [
@@ -94,7 +86,6 @@
       "라멘"
     ]
   },
-
   "noodles": {
     "display_name": "noodles",
     "aliases": [
@@ -105,7 +96,6 @@
       "국수"
     ]
   },
-
   "rice": {
     "display_name": "rice",
     "aliases": [
@@ -114,7 +104,6 @@
       "밥"
     ]
   },
-
   "fried_rice": {
     "display_name": "fried rice",
     "aliases": [
@@ -124,7 +113,6 @@
       "볶음밥"
     ]
   },
-
   "kimchi": {
     "display_name": "kimchi",
     "aliases": [
@@ -133,7 +121,6 @@
       "김치"
     ]
   },
-
   "bread": {
     "display_name": "bread",
     "aliases": [
@@ -143,7 +130,6 @@
       "빵"
     ]
   },
-
   "cake": {
     "display_name": "cake",
     "aliases": [
@@ -152,7 +138,6 @@
       "케이크"
     ]
   },
-
   "cookie": {
     "display_name": "cookies",
     "aliases": [
@@ -162,7 +147,6 @@
       "쿠키"
     ]
   },
-
   "chocolate": {
     "display_name": "chocolate",
     "aliases": [
@@ -174,7 +158,6 @@
       "초콜레이트"
     ]
   },
-
   "candy": {
     "display_name": "candy",
     "aliases": [
@@ -184,7 +167,6 @@
       "사탕"
     ]
   },
-
   "apple": {
     "display_name": "apples",
     "aliases": [
@@ -194,7 +176,6 @@
       "사과"
     ]
   },
-
   "banana": {
     "display_name": "bananas",
     "aliases": [
@@ -203,7 +184,6 @@
       "바나나"
     ]
   },
-
   "orange": {
     "display_name": "oranges",
     "aliases": [
@@ -212,7 +192,6 @@
       "오렌지"
     ]
   },
-
   "grape": {
     "display_name": "grapes",
     "aliases": [
@@ -222,7 +201,6 @@
       "포도"
     ]
   },
-
   "strawberry": {
     "display_name": "strawberries",
     "aliases": [
@@ -232,7 +210,6 @@
       "딸기"
     ]
   },
-
   "watermelon": {
     "display_name": "watermelon",
     "aliases": [
@@ -242,7 +219,6 @@
       "수박"
     ]
   },
-
   "chicken": {
     "display_name": "chicken",
     "aliases": [
@@ -252,7 +228,6 @@
       "닭고기"
     ]
   },
-
   "fried_chicken": {
     "display_name": "fried chicken",
     "aliases": [
@@ -262,7 +237,6 @@
       "후라이드 치킨"
     ]
   },
-
   "fish": {
     "display_name": "fish",
     "aliases": [
@@ -272,7 +246,6 @@
       "생선"
     ]
   },
-
   "egg": {
     "display_name": "eggs",
     "aliases": [
@@ -283,7 +256,6 @@
       "계란"
     ]
   },
-
   "cheese": {
     "display_name": "cheese",
     "aliases": [
@@ -291,7 +263,6 @@
       "치즈"
     ]
   },
-
   "salad": {
     "display_name": "salad",
     "aliases": [
@@ -300,7 +271,6 @@
       "샐러드"
     ]
   },
-
   "soup": {
     "display_name": "soup",
     "aliases": [
@@ -310,7 +280,6 @@
       "스프"
     ]
   },
-
   "milk": {
     "display_name": "milk",
     "aliases": [
@@ -319,7 +288,6 @@
       "우유"
     ]
   },
-
   "juice": {
     "display_name": "juice",
     "aliases": [
@@ -329,7 +297,6 @@
       "쥬스"
     ]
   },
-
   "hot_dog": {
     "display_name": "hot dogs",
     "aliases": [
@@ -340,7 +307,6 @@
       "핫도그"
     ]
   },
-
   "french_fries": {
     "display_name": "French fries",
     "aliases": [
@@ -353,16 +319,21 @@
       "감자튀김"
     ]
   },
-
   "malatang": {
     "display_name": "malatang",
     "aliases": [
       "malatang",
       "mala tang",
-      "마라탕"
+      "마라탕",
+      "maratang",
+      "mara tang",
+      "marathon",
+      "maraton",
+      "malathon",
+      "malatang soup",
+      "마라 탕"
     ]
   },
-
   "pho": {
     "display_name": "pho",
     "aliases": [
@@ -372,7 +343,6 @@
       "쌀국수"
     ]
   },
-
   "tanghulu": {
     "display_name": "tanghulu",
     "aliases": [
@@ -383,7 +353,6 @@
       "탕후루"
     ]
   },
-
   "tteokbokki": {
     "display_name": "tteokbokki",
     "aliases": [
@@ -394,7 +363,6 @@
       "떡볶이"
     ]
   },
-
   "gimbap": {
     "display_name": "gimbap",
     "aliases": [
@@ -404,13 +372,20 @@
       "김밥"
     ]
   },
-
   "bulgogi": {
     "display_name": "bulgogi",
     "aliases": [
       "bulgogi",
       "bul go gi",
       "불고기"
+    ]
+  },
+  "macaron": {
+    "display_name": "macarons",
+    "aliases": [
+      "macaron",
+      "macarons",
+      "마카롱"
     ]
   }
 }
